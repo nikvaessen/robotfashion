@@ -50,14 +50,14 @@ noisy image were removed.
 
 This dataset allows for benchmarks:
 1. clothing category and attribute prediction
-  * category prediction uses top-k classification accuracy
-  * attribute prediction uses top-k recall rate
+    * category prediction uses top-k classification accuracy
+    * attribute prediction uses top-k recall rate
 2. in-shop clothes retrieval
-  * decide whether two images the same clothing item
-  * only includes "nice" in-shop images
-  * metric: top-k retrieval accuracy (retrieval = exact item in top-k results)
+    * decide whether two images the same clothing item
+    * only includes "nice" in-shop images
+    * metric: top-k retrieval accuracy (retrieval = exact item in top-k results)
 3. cross-domain clothes retrieval
-  * same as 2, but match consumer picture to shopping picture
+    * same as 2, but match consumer picture to shopping picture
 
 ### FashionNet
 
