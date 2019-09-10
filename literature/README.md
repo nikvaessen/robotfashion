@@ -20,3 +20,5 @@ https://labicvl.github.io/docs/pubs/Andreas_ICRA_2014.pdf
 |  paper | summary | code | dataset(s) | read by |
 | ------ | ------- | ---- | ---------- | ------- |
 |  [DeepFashion: Powering Robust Clothes Recognition and Retrieval with Rich Annotations](./pdf/deepfashion.pdf) | present a novel dataset (with categories, attributes, land mark bounding boxes and cross-domain image pairs) and a state-of-the-art architecture called FashionNet | http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion.html | DeepFashion | * nik |
+| [DeepFashion2: A Versatile Benchmark for Detection, Pose Estimation,
+Segmentation and Re-Identification of Clothing Images](./pdf/deepfashion2.pdf) | not yet made | https://github.com/switchablenorms/DeepFashion2 | DeepFashion2 | * noone |
