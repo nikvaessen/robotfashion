@@ -5,12 +5,13 @@
 
 #### Links
 [Link to paper](./pdf/ctu_color_depth.pdf)  
-[Link to repository]((https://github.com/CloPeMa/garment_dataset)
+Link to repository - https://github.com/CloPeMa/garment_dataset
 
 #### Summary
  * contains colour and depth images of spread garments
  * Color images - segmentation, recognition and model fitting
  * Depth images - wrinkle detection and spreading strategy estimation.
+ 
 #### Purpose
  Clothes PErception and Manipulation. 
 
@@ -30,8 +31,8 @@
 	 * annotation file - .yaml file with ground truth variables and path to color and depth, name and position of corners and moves to change state of model.
 
 ## Part II - Folded Garments
-*1. classified to 9 classes.
-*2. keypoints along the outline of the garment.
+* 1. classified to 9 classes.
+* 2. keypoints along the outline of the garment.
 #### read by
 * Deepika
 </details>
