@@ -1,8 +1,10 @@
-# DeepFashion2: A Versatile Benchmark for Detection, Pose Estimation, Segmentation and Re-Identification of Clothing Images
+# DeepFashion: Powering Robust Clothes Recognition and Retrieval with Rich Annotations
 
-(paper can be found here)[./pdf/deepfashion.pdf]
+[paper can be found here](./pdf/deepfashion.pdf)
 
 ## Motivation
+
+
 
 ### Research questions
 * 1

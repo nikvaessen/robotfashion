@@ -1,6 +1,6 @@
 # Title of papaer
 
-(paper can be found here)[]
+[paper can be found here](link)
 
 ## Motivation
 
