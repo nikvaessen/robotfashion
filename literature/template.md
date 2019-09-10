@@ -1,22 +1,23 @@
+--------------------------------------------------------------------------------
 <details>
 <summary>Title of paper</summary>
 <br>
 
-### Links
-[link to paper](link_here)  
-[link to repository](link_here)
+#### Links
+[Link to paper](link_here)  
+[Link to repository](link_here)
 
-### Summary
+#### Summary
 This is a summary of the paper
 
-### Tasks
+#### Tasks
 * 1
 * 2
 * 3
 
-### Datasets
+#### Datasets
 * 1
 
-### read by
+#### read by
 * 1
 </details>
