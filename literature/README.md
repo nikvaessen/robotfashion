@@ -113,18 +113,16 @@ garments</summary>
 [Link to repository](https://github.com/CloPeMa/garment_dataset)
 
 #### Summary
-This is a summary of the paper
+17 different garments annotated with RGB, depth and shape, face, type annotation
 
 #### Tasks
-* 1
-* 2
-* 3
+* folding
 
 #### Datasets
-* 1
+* CTU color depth
 
 #### read by
-* 1
+* nik
 </details>
 
 --------------------------------------------------------------------------------
