@@ -53,6 +53,7 @@ This is a summary of the paper.
 #### read by
 * 1
 </details>
+
 --------------------------------------------------------------------------------
 <details>
 <summary>Glasgow's Stereo Image Database of Garments</summary>
@@ -76,6 +77,7 @@ This is a summary of the paper
 #### read by
 * 1
 </details>
+
 --------------------------------------------------------------------------------
 <details>
 <summary>CTU color and depth image dataset of spread
