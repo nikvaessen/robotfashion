@@ -38,9 +38,9 @@ This dataset proposes three benchmarks:
     * same as 2, but match consumer picture to shopping picture
 
 ### Tasks
-* category and attribute prediction
-* in-shop clothing retrieval (matching 2 images)
-* consumer-shop clothing retrieval (matching 2 images)
+* clothing category and attribute prediction
+* in-shop clothes retrieval
+* cross-domain clothes retrieval
 
 ### Datasets
 * DeepFashion
