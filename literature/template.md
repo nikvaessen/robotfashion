@@ -1,15 +1,10 @@
-# Title of papaer
-
-[paper can be found here](link)
-
-## Motivation
-
-### Research questions
-* 1
-* 2
-
-## Methodology
-
-## Solution
-
-## Important technical details
+<details>
+<summary>Paper Title</summary>
+<br>
+### link to paper
+link to repository
+summary
+tasks
+datasets
+read by
+</details>
