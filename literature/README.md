@@ -15,3 +15,7 @@ http://mvc-datasets.github.io/MVC/you
 https://github.com/eBay/modanet
 
 https://labicvl.github.io/docs/pubs/Andreas_ICRA_2014.pdf
+
+
+|  paper | summary | code | dataset(s) | read by |
+|  test  | test | test | test | test |
