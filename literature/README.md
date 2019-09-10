@@ -59,18 +59,25 @@ This dataset proposes three benchmarks:
 [Link to repository](https://github.com/switchablenorms/DeepFashion2 )
 
 #### Summary
-This is a summary of the paper.
 
-#### Tasks
-* 1
-* 2
-* 3
+Preset a novel dataset with 801k clothing items, where each item has annotations for:
+* 13 categories (less ambiguous than deepfashion 1 )
+* bounding boxes
+* pose for each landmark, which has set of landmarks plus contours and skeleton between landmarks
+* per-pixel map over clothing item
+* style label
+
+#### Tass
+* clothes detection (bounding box + category label)
+* landmark estimation
+* segmentation
+* commercial-consumer clothes retrieval
 
 #### Datasets
 * DeepFashion2
 
 #### read by
-* 1
+* Nik
 </details>
 
 --------------------------------------------------------------------------------
