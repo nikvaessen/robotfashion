@@ -90,18 +90,16 @@ Preset a novel dataset with 801k clothing items, where each item has annotations
 [Link to repository](https://sites.google.com/site/ugstereodatabase/)
 
 #### Summary
-This is a summary of the paper
+16 unique clothing items in 5 positions on table, in stereo pairs and image mask.
 
 #### Tasks
-* 1
-* 2
-* 3
+* stereo matching
 
 #### Datasets
-* 1
+* Glasgow
 
 #### read by
-* 1
+* Nik
 </details>
 
 --------------------------------------------------------------------------------
