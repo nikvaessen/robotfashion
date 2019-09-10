@@ -14,9 +14,28 @@ Some important/relevant papers:
 [link to repository](http://mmlab.ie.cuhk.edu.hk/projects/DeepFashion.html)
 
 ### Summary
-Present a novel dataset with categories, attributes, land mark bounding boxes and cross-domain image pairs of clothes in 2 domains: shopping websites and consumes
-Design a state-of-the-art architecture called FashionNet
-Define 3 benchmarks
+Present a novel dataset with 800k images, labeled with:
+* categories (50)
+* attributes (1000)
+* land mark bounding boxes of key points in clothing (4~8 per image)
+* cross-domain/cross-pose image pairs (300k)
+
+Dataset contains:
+* images of professional photo shoot for retail (in-shop)
+* images of normal people in the clothes, such as selfies (consumer)
+
+Design a state-of-the-art architecture called FashionNet, which combines the task of attribute prediction and landmark prediction in 1 network.   
+
+This dataset proposes three benchmarks:
+1. clothing category and attribute prediction
+    * category prediction uses top-k classification accuracy
+    * attribute prediction uses top-k recall rate
+2. in-shop clothes retrieval
+    * decide whether two images the same clothing item
+    * only includes "nice" in-shop images
+    * metric: top-k retrieval accuracy (retrieval = exact item in top-k results)
+3. cross-domain clothes retrieval
+    * same as 2, but match consumer picture to shopping picture
 
 ### Tasks
 * category and attribute prediction
