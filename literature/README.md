@@ -53,11 +53,56 @@ This is a summary of the paper.
 #### read by
 * 1
 </details>
+--------------------------------------------------------------------------------
+<details>
+<summary>Glasgow's Stereo Image Database of Garments</summary>
+<br>
 
+#### Links
+[Link to paper](./pdf/glasgow_database.pdf)  
+[Link to repository](https://sites.google.com/site/ugstereodatabase/)
 
+#### Summary
+This is a summary of the paper
+
+#### Tasks
+* 1
+* 2
+* 3
+
+#### Datasets
+* 1
+
+#### read by
+* 1
+</details>
+--------------------------------------------------------------------------------
+<details>
+<summary>CTU color and depth image dataset of spread
+garments</summary>
+<br>
+
+#### Links
+[Link to paper](./pdf/ctu_color_depth.pdf)  
+[Link to repository](https://github.com/CloPeMa/garment_dataset)
+
+#### Summary
+This is a summary of the paper
+
+#### Tasks
+* 1
+* 2
+* 3
+
+#### Datasets
+* 1
+
+#### read by
+* 1
+</details>
+
+--------------------------------------------------------------------------------
 process:
-* G. Aragon-Camarasa, S. B. Oehler, Y. Liu, L. Sun, P. Cockshott and J. P. Siebert, "Glasgow's Stereo Image Database of Garments", CoRR abs/1311.7295. [PDF]
-* CTU Color and Depth Image Dataset of Spread Garments
 http://vision.is.tohoku.ac.jp/~kyamagu/research/clothing_parsing/  
 http://mvc-datasets.github.io/MVC/you  
 https://github.com/eBay/modanet  
