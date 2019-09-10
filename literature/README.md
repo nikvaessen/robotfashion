@@ -104,7 +104,7 @@ This is a summary of the paper
 </details>
 
 --------------------------------------------------------------------------------
-process:
+process:  
 http://vision.is.tohoku.ac.jp/~kyamagu/research/clothing_parsing/  
 http://mvc-datasets.github.io/MVC/you  
 https://github.com/eBay/modanet  
