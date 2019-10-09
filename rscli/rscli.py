@@ -6,7 +6,7 @@ from time import sleep, time
 from enum import Enum
 from threading import Thread, Event
 from typing import Callable, List
-from queue import Queue
+from queue import Queue, Empty
 
 try:
     import pyrealsense2 as rs
@@ -30,78 +30,124 @@ class StoppableThread(Thread):
         return self._stop_event.is_set()
 
 
+class FramePackage:
+    def __init__(self, data: np.ndarray, path: pathlib.Path, marked: bool):
+        self.data: np.ndarray = data
+        self.storage_path: pathlib.Path = path
+        self.marked = marked
+
+
 class RecordingThread(StoppableThread):
     def __init__(self, path: pathlib.Path, queue: Queue):
         super().__init__()
 
         self.path: pathlib.Path = path
         self.queue = queue
+
+        self._mark_event = Event()
         self._frame_count = 0
+        self._start_ts = time()
 
     def run(self) -> None:
         pipe = rs.pipeline()
 
         config = rs.config()
         config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 6)
-        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 6)
+        config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 6)
 
         profile = pipe.start(config)
 
         align_to = rs.stream.color
         align = rs.align(align_to)
 
+        for i in range(0, 18):
+            pipe.wait_for_frames()
+
         try:
             self._frame_count = 0
+            self._start_ts = time()
+
             while not self.stopped():
                 self._frame_count += 1
 
-                frames: rs.composite_frame = pipe.wait_for_frames()
-                aligned_frames = align.process(frames)
+                try:
+                    frames: rs.composite_frame = pipe.wait_for_frames()
+                    aligned_frames = align.process(frames)
 
-                color_frame: rs.video_frame = aligned_frames.get_color_frame()
-                depth_frame: rs.depth_frame = aligned_frames.get_depth_frame()
+                    color_frame: rs.video_frame = aligned_frames.get_color_frame()
+                    depth_frame: rs.depth_frame = aligned_frames.get_depth_frame()
 
-                color_image = np.asanyarray(color_frame.get_data())
-                depth_image = np.asanyarray(depth_frame.get_data())
+                    color_frame.keep()
 
-                color_package = (
-                    self.path / "{}_color.png".format(self._frame_count),
-                    color_image,
-                )
+                    color_image = np.asanyarray(color_frame.get_data())
+                    depth_image = np.asanyarray(depth_frame.get_data())
 
-                depth_package = (
-                    self.path / "{}_depth.png".format(self._frame_count),
-                    depth_image,
-                )
+                    color_package = FramePackage(
+                        color_image,
+                        self.path / "{}_color".format(self._frame_count),
+                        self.is_marked(),
+                    )
 
-                # self.queue.put(color_package)
-                self.queue.put(color_package, block=False)
-                self.queue.put(depth_package, block=False)
+                    depth_package = FramePackage(
+                        depth_image,
+                        self.path / "{}_depth".format(self._frame_count),
+                        self.is_marked(),
+                    )
 
+                    self.queue.put(color_package, block=False)
+                    self.queue.put(depth_package, block=False)
+
+                    self._reset_mark()
+                except RuntimeError:
+                    pass
         finally:
             pipe.stop()
 
     def get_frame_count(self):
         return self._frame_count
 
+    def get_recording_time(self):
+        return time() - self._start_ts
+
+    def get_estimated_fps(self):
+        fc = self.get_frame_count()
+        rt = self.get_recording_time()
+
+        if fc <= 0:
+            return 0
+        else:
+            return fc / rt
+
+    def mark_next_frame(self):
+        self._mark_event.set()
+
+    def is_marked(self):
+        return self._mark_event.isSet()
+
+    def _reset_mark(self):
+        self._mark_event.clear()
+
 
 class ImageProcessingThread(StoppableThread):
     def __init__(self, queue: Queue):
         super().__init__()
 
-        self.queue = queue
+        self.queue: Queue = queue
 
     def run(self) -> None:
         while not self.stopped():
             try:
-                path, data = self.queue.get(timeout=1)
-                self._write_img(path, data)
-            except TimeoutError:
+                package = self.queue.get(timeout=1)
+                self._save_package(package)
+            except Empty:
                 pass
 
     @staticmethod
-    def _write_img(path: pathlib.Path, data: np.ndarray):
-        imageio.imwrite(path, data)
+    def _save_package(package: FramePackage):
+        np.savez_compressed(package.storage_path, data=package.data)
+
+        if package.marked:
+            imageio.imwrite(str(package.storage_path) + ".png", package.data)
 
 
 class State(Enum):
@@ -125,10 +171,9 @@ class UiManager:
         self.error: str = None
         self.error_deadline: float = None
 
-        self.recording_start_ts: float = None
         self.recording_thread: RecordingThread = None
 
-        self.data_queue = Queue()
+        self.data_queue = Queue(100)
         self.image_processing_thread: ImageProcessingThread = ImageProcessingThread(
             self.data_queue
         )
@@ -187,6 +232,9 @@ class UiManager:
             if key == "s":
                 self.stop_recording()
 
+            elif key == "m":
+                self.recording_thread.mark_next_frame()
+
     def _get_input_key(self) -> str or None:
         try:
             return self.win.getkey()
@@ -229,11 +277,9 @@ class UiManager:
             )
 
         elif self.state == State.RECORDING:
-            recording_time = time() - self.recording_start_ts
+            recording_time = self.recording_thread.get_recording_time()
             frame_count = self.recording_thread.get_frame_count()
-            if frame_count == 0:
-                frame_count = 0.000001
-            fps = frame_count / recording_time
+            fps = self.recording_thread.get_estimated_fps()
 
             self.win.addstr(
                 "\nrecording time: {:5.0f} seconds\t".format(recording_time)
@@ -242,7 +288,7 @@ class UiManager:
             self.win.addstr("estimated FPS: {:5.1f}\t".format(fps))
             self.win.addstr("queue size: {}".format(self.data_queue.qsize()))
 
-            self.win.addstr(winH - 1, 0, 'press "s" to stop recording')
+            self.win.addstr(winH - 1, 0, 'press "m" to mark a frame, "s" to stop recording')
 
     def start(self):
         self.win.nodelay(True)
@@ -276,7 +322,6 @@ class UiManager:
             return
 
         self.state = State.RECORDING
-        self.recording_start_ts = time()
 
         self.recording_thread = RecordingThread(self.current_dir, self.data_queue)
         self.recording_thread.start()
@@ -284,6 +329,8 @@ class UiManager:
     def stop_recording(self):
         self.recording_thread.stop()
         self.recording_thread.join()
+
+        self.data_queue.join()
 
         self.state = State.MAIN
 
