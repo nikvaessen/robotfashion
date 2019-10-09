@@ -144,7 +144,9 @@ class ImageProcessingThread(StoppableThread):
 
     @staticmethod
     def _save_package(package: FramePackage):
-        np.savez_compressed(package.storage_path, data=package.data, marked=package.marked)
+        np.savez_compressed(
+            package.storage_path, data=package.data, marked=package.marked
+        )
 
         if package.marked:
             imageio.imwrite(str(package.storage_path) + ".png", package.data)
@@ -288,7 +290,9 @@ class UiManager:
             self.win.addstr("estimated FPS: {:5.1f}\t".format(fps))
             self.win.addstr("queue size: {}".format(self.data_queue.qsize()))
 
-            self.win.addstr(winH - 1, 0, 'press "m" to mark a frame, "s" to stop recording')
+            self.win.addstr(
+                winH - 1, 0, 'press "m" to mark a frame, "s" to stop recording'
+            )
 
     def start(self):
         self.win.nodelay(True)
