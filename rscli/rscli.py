@@ -144,7 +144,7 @@ class ImageProcessingThread(StoppableThread):
 
     @staticmethod
     def _save_package(package: FramePackage):
-        np.savez_compressed(package.storage_path, data=package.data)
+        np.savez_compressed(package.storage_path, data=package.data, marked=package.marked)
 
         if package.marked:
             imageio.imwrite(str(package.storage_path) + ".png", package.data)
