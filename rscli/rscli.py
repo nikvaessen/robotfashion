@@ -29,8 +29,13 @@ class UiManager:
         self.current_dir = pathlib.Path(os.getcwd())
 
         self.written_input_ready = None
-        self.written_input = ""
-        self.written_input_query = ""
+        self.written_input = None
+        self.written_input_query = None
+
+        self.error = None
+        self.error_deadline = None
+
+        self.recording_start_ts = None
 
     def handle_keyboard_input(self):
         key = self._get_input_key()
@@ -60,6 +65,7 @@ class UiManager:
 
                     self.current_dir = path
 
+                self.written_input = ""
                 self.written_input_ready = f
                 self.written_input_query = "New storage directory path: "
                 self.written_input = str(self.current_dir)
@@ -71,6 +77,7 @@ class UiManager:
                     if written == "y" or written == "yes":
                         exit(0)
 
+                self.written_input = ""
                 self.written_input_ready = f
                 self.written_input_query = "Are you sure you want to quit? [y\\n]"
 
@@ -101,7 +108,15 @@ class UiManager:
 
         self.win.addstr("connected devices: {}\t".format(self.devices_connected))
         self.win.addstr("recording: {}\n".format(self.state == State.RECORDING))
-        self.win.addstr("\nstorage directory: {}".format(self.current_dir))
+        self.win.addstr("\nstorage directory: {}\n".format(self.current_dir))
+
+        if self.error_deadline is not None:
+            self.win.addstr("\n\n\n")
+            self.win.addstr("error: {}".format(self.error))
+
+            if time() > self.error_deadline:
+                self.error = ""
+                self.error_deadline = None
 
         if self.state == State.MAIN:
             self.win.addstr(
@@ -115,9 +130,11 @@ class UiManager:
             )
 
         elif self.state == State.RECORDING:
-            self.win.addstr(winH - 1, 0, 'press "s" to stop recording')
+            self.win.addstr(
+                "recording time: {:5.0f} seconds".format(time() - self.recording_start_ts)
+            )
 
-            self.start_recording()
+            self.win.addstr(winH - 1, 0, 'press "s" to stop recording')
 
     def start(self):
         self.win.nodelay(True)
@@ -140,13 +157,21 @@ class UiManager:
                 prev_frame_update = current_frame_ts
 
     def start_recording(self):
+        if self.devices_connected <= 0:
+            self.display_error("no camera(s) connected", 1000)
+            return
+
         self.state = State.RECORDING
-        pass
+        self.recording_start_ts = time()
 
     def stop_recording(self):
         self.state = State.MAIN
 
         pass
+
+    def display_error(self, message, display_time_ms):
+        self.error = message
+        self.error_deadline = time() + display_time_ms / 1000
 
 
 def main(win):
