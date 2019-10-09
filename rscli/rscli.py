@@ -4,14 +4,104 @@ import os
 
 from time import sleep, time
 from enum import Enum
-
+from threading import Thread, Event
+from typing import Callable, List
+from queue import Queue
 
 try:
     import pyrealsense2 as rs
+    import numpy as np
+    import imageio
 except ImportError:
     rs = None
-    print("pyrealsense2 library not found. Did you run `pip install pyrealsense2'?")
+    print("One or more dependencies not found. Run 'pip install -r requirements.txt'")
     exit(1)
+
+
+class StoppableThread(Thread):
+    def __init__(self):
+        super().__init__()
+        self._stop_event = Event()
+
+    def stop(self):
+        self._stop_event.set()
+
+    def stopped(self):
+        return self._stop_event.is_set()
+
+
+class RecordingThread(StoppableThread):
+    def __init__(self, path: pathlib.Path, queue: Queue):
+        super().__init__()
+
+        self.path: pathlib.Path = path
+        self.queue = queue
+        self._frame_count = 0
+
+    def run(self) -> None:
+        pipe = rs.pipeline()
+
+        config = rs.config()
+        config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 6)
+        config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 6)
+
+        profile = pipe.start(config)
+
+        align_to = rs.stream.color
+        align = rs.align(align_to)
+
+        try:
+            self._frame_count = 0
+            while not self.stopped():
+                self._frame_count += 1
+
+                frames: rs.composite_frame = pipe.wait_for_frames()
+                aligned_frames = align.process(frames)
+
+                color_frame: rs.video_frame = aligned_frames.get_color_frame()
+                depth_frame: rs.depth_frame = aligned_frames.get_depth_frame()
+
+                color_image = np.asanyarray(color_frame.get_data())
+                depth_image = np.asanyarray(depth_frame.get_data())
+
+                color_package = (
+                    self.path / "{}_color.png".format(self._frame_count),
+                    color_image,
+                )
+
+                depth_package = (
+                    self.path / "{}_depth.png".format(self._frame_count),
+                    depth_image,
+                )
+
+                # self.queue.put(color_package)
+                self.queue.put(color_package, block=False)
+                self.queue.put(depth_package, block=False)
+
+        finally:
+            pipe.stop()
+
+    def get_frame_count(self):
+        return self._frame_count
+
+
+class ImageProcessingThread(StoppableThread):
+    def __init__(self, queue: Queue):
+        super().__init__()
+
+        self.queue = queue
+
+    def run(self) -> None:
+        while not self.stopped():
+            try:
+                path, data = self.queue.get(timeout=1)
+                self._write_img(path, data)
+            except TimeoutError:
+                pass
+
+    @staticmethod
+    def _write_img(path: pathlib.Path, data: np.ndarray):
+        imageio.imwrite(path, data)
 
 
 class State(Enum):
@@ -21,21 +111,28 @@ class State(Enum):
 
 
 class UiManager:
-    def __init__(self, window, rsctx):
-        self.state = State.MAIN
-        self.devices_connected = 0
+    def __init__(self, window, rsctx: rs.context):
+        self.state: State = State.MAIN
+        self.devices_connected: int = 0
         self.win = window
-        self.rsctx = rsctx
-        self.current_dir = pathlib.Path(os.getcwd())
+        self.rsctx: rs.context = rsctx
+        self.current_dir: pathlib.Path = pathlib.Path(os.getcwd())
 
-        self.written_input_ready = None
-        self.written_input = None
-        self.written_input_query = None
+        self.written_input_ready: Callable[[str], None] = None
+        self.written_input: str = None
+        self.written_input_query: str = None
 
-        self.error = None
-        self.error_deadline = None
+        self.error: str = None
+        self.error_deadline: float = None
 
-        self.recording_start_ts = None
+        self.recording_start_ts: float = None
+        self.recording_thread: RecordingThread = None
+
+        self.data_queue = Queue()
+        self.image_processing_thread: ImageProcessingThread = ImageProcessingThread(
+            self.data_queue
+        )
+        self.image_processing_thread.start()
 
     def handle_keyboard_input(self):
         key = self._get_input_key()
@@ -75,6 +172,8 @@ class UiManager:
 
                 def f(written):
                     if written == "y" or written == "yes":
+                        self.image_processing_thread.stop()
+                        self.image_processing_thread.join()
                         exit(0)
 
                 self.written_input = ""
@@ -88,7 +187,7 @@ class UiManager:
             if key == "s":
                 self.stop_recording()
 
-    def _get_input_key(self):
+    def _get_input_key(self) -> str or None:
         try:
             return self.win.getkey()
         except curses.error as e:
@@ -130,9 +229,18 @@ class UiManager:
             )
 
         elif self.state == State.RECORDING:
+            recording_time = time() - self.recording_start_ts
+            frame_count = self.recording_thread.get_frame_count()
+            if frame_count == 0:
+                frame_count = 0.000001
+            fps = frame_count / recording_time
+
             self.win.addstr(
-                "recording time: {:5.0f} seconds".format(time() - self.recording_start_ts)
+                "\nrecording time: {:5.0f} seconds\t".format(recording_time)
             )
+            self.win.addstr("processed frames: {}\t".format(frame_count))
+            self.win.addstr("estimated FPS: {:5.1f}\t".format(fps))
+            self.win.addstr("queue size: {}".format(self.data_queue.qsize()))
 
             self.win.addstr(winH - 1, 0, 'press "s" to stop recording')
 
@@ -143,20 +251,26 @@ class UiManager:
         curses.init_pair(1, curses.COLOR_WHITE, -1)
         curses.color_pair(1)
 
-        prev_frame_update = time()
+        prev_frame_update_ts = time()
+        prev_device_update_ts = time()
 
         while True:
             sleep(1 / 1000)
             current_frame_ts = time()
 
-            if current_frame_ts - prev_frame_update > 1 / 30:
-                self.update()
-                self.render()
-                self.handle_keyboard_input()
+            self.handle_keyboard_input()
 
-                prev_frame_update = current_frame_ts
+            if current_frame_ts - prev_frame_update_ts > 1 / 15:
+                self.render()
+                prev_frame_update_ts = current_frame_ts
+
+            if current_frame_ts - prev_device_update_ts > 1:
+                self.update()
+                prev_device_update_ts = current_frame_ts
 
     def start_recording(self):
+        self.update()
+
         if self.devices_connected <= 0:
             self.display_error("no camera(s) connected", 1000)
             return
@@ -164,12 +278,16 @@ class UiManager:
         self.state = State.RECORDING
         self.recording_start_ts = time()
 
+        self.recording_thread = RecordingThread(self.current_dir, self.data_queue)
+        self.recording_thread.start()
+
     def stop_recording(self):
+        self.recording_thread.stop()
+        self.recording_thread.join()
+
         self.state = State.MAIN
 
-        pass
-
-    def display_error(self, message, display_time_ms):
+    def display_error(self, message: str, display_time_ms: float):
         self.error = message
         self.error_deadline = time() + display_time_ms / 1000
 

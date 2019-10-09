@@ -1,1 +1,3 @@
+imageio
 pyrealsense2
+numpy
