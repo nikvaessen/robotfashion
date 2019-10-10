@@ -17,6 +17,8 @@ except ImportError:
     print("One or more dependencies not found. Run 'pip install -r requirements.txt'")
     exit(1)
 
+DESIRED_FPS = 6
+
 
 class StoppableThread(Thread):
     def __init__(self):
@@ -38,29 +40,37 @@ class FramePackage:
 
 
 class RecordingThread(StoppableThread):
-    def __init__(self, path: pathlib.Path, queue: Queue):
+    def __init__(self, path: pathlib.Path, queue: Queue, ctx: rs.context, dev_id: str):
         super().__init__()
 
         self.path: pathlib.Path = path
-        self.queue = queue
+        self.queue: Queue = queue
+        self.ctx = ctx
+        self.dev_id: str = dev_id
 
         self._mark_event = Event()
         self._frame_count = 0
         self._start_ts = time()
 
     def run(self) -> None:
-        pipe = rs.pipeline()
+        # pipes = []
+
+        # for dev in self.rsctx.query_devices():
+        pipe = rs.pipeline(self.ctx)
+        # pipes.append(pipe)
 
         config = rs.config()
-        config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, 6)
-        config.enable_stream(rs.stream.color, 1280, 720, rs.format.bgr8, 6)
+        config.enable_device(self.dev_id)
+        config.enable_stream(rs.stream.depth, 1280, 720, rs.format.z16, DESIRED_FPS)
+        config.enable_stream(rs.stream.color, 1280, 720, rs.format.rgb8, DESIRED_FPS)
 
-        profile = pipe.start(config)
+        pipe.start(config)
 
         align_to = rs.stream.color
         align = rs.align(align_to)
 
-        for i in range(0, 18):
+        for i in range(0, DESIRED_FPS * 3):
+            # for idx, pipe in enumerate(pipes):
             pipe.wait_for_frames()
 
         try:
@@ -69,28 +79,39 @@ class RecordingThread(StoppableThread):
 
             while not self.stopped():
                 self._frame_count += 1
-
                 try:
+                    # depth_frames = []
+                    # color_frames = []
+
+                    # for pipe in pipes:
                     frames: rs.composite_frame = pipe.wait_for_frames()
                     aligned_frames = align.process(frames)
 
-                    color_frame: rs.video_frame = aligned_frames.get_color_frame()
-                    depth_frame: rs.depth_frame = aligned_frames.get_depth_frame()
+                    cf: rs.video_frame = aligned_frames.get_color_frame()
+                    df: rs.depth_frame = aligned_frames.get_depth_frame()
 
-                    color_frame.keep()
+                    # color_frames.append(color_frame)
+                    # depth_frames.append(depth_frame)
 
-                    color_image = np.asanyarray(color_frame.get_data())
-                    depth_image = np.asanyarray(depth_frame.get_data())
+                    # for dev_idx, (cf, df) in enumerate(zip(color_frames, depth_frames)):
+                    color_image = np.asanyarray(cf.get_data())
+                    depth_image = np.asanyarray(cf.get_data())
 
                     color_package = FramePackage(
                         color_image,
-                        self.path / "{}_color".format(self._frame_count),
+                        self.path
+                        / "dev_{}_frame_{}_color".format(
+                            self.dev_id, self._frame_count
+                        ),
                         self.is_marked(),
                     )
 
                     depth_package = FramePackage(
                         depth_image,
-                        self.path / "{}_depth".format(self._frame_count),
+                        self.path
+                        / "dev_{}_frame_{}_depth".format(
+                            self.dev_id, self._frame_count
+                        ),
                         self.is_marked(),
                     )
 
@@ -101,6 +122,7 @@ class RecordingThread(StoppableThread):
                 except RuntimeError:
                     pass
         finally:
+            # for pipe in pipes:
             pipe.stop()
 
     def get_frame_count(self):
@@ -139,6 +161,7 @@ class ImageProcessingThread(StoppableThread):
             try:
                 package = self.queue.get(timeout=1)
                 self._save_package(package)
+                self.queue.task_done()
             except Empty:
                 pass
 
@@ -327,7 +350,9 @@ class UiManager:
 
         self.state = State.RECORDING
 
-        self.recording_thread = RecordingThread(self.current_dir, self.data_queue)
+        self.recording_thread = RecordingThread(
+            self.current_dir, self.data_queue, self.rsctx
+        )
         self.recording_thread.start()
 
     def stop_recording(self):
@@ -350,5 +375,52 @@ def main(win):
     manager.start()
 
 
+def record_without_gui_to_see_exceptions():
+    ctx = rs.context()
+
+    device_ids = []
+
+    for dev in ctx.query_devices():
+        device_ids.append(dev.get_info(rs.camera_info.serial_number))
+
+    print("recognized {} devices".format(len(device_ids)))
+
+    queue = Queue()
+    processing_thread = ImageProcessingThread(queue)
+    processing_thread.start()
+
+    recording_threads = []
+    for dev_id in device_ids:
+        record_thread = RecordingThread(pathlib.Path(os.getcwd()), queue, ctx, dev_id)
+        record_thread.start()
+        recording_threads.append(record_thread)
+
+    print("starting sleep")
+    sleep(10)
+    print("ending sleep")
+
+    for rt in recording_threads:
+        print(rt.get_estimated_fps(), rt.get_frame_count(), rt.get_recording_time())
+        rt.stop()
+
+    for rt in recording_threads:
+        rt.join()
+
+    queue.join()
+
+    processing_thread.stop()
+    processing_thread.join()
+
+    for file in os.listdir(os.getcwd()):
+        f = np.load(file)
+        data = f["data"]
+        marked = f["marked"]
+
+        if "color" in file:
+            img_fn = file.split(".")[0] + ".png"
+            imageio.imwrite(img_fn, data)
+
+
 if __name__ == "__main__":
-    curses.wrapper(main)
+    # curses.wrapper(main)
+    record_without_gui_to_see_exceptions()
