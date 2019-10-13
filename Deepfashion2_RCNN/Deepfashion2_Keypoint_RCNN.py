@@ -8,7 +8,7 @@ import myutils
 
 def main():
     # get the model using our helper function
-    model = myutils.get_model_keypoint_detection(num_classes, num_keypoints)
+    model = get_model_keypoint_detection(num_classes, num_keypoints)
     
     if not inference_only:
         train_RCNN(model, path2data, path2json, weight_path)
