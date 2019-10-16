@@ -115,6 +115,44 @@ def get_model_keypoint_detection(num_classes, num_keypoints):
     model.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
     in_features_keypoint = model.roi_heads.keypoint_predictor.kps_score_lowres.in_channels
 
+    ################# USE PRETRAINED DEEP FASHION 1 #################
+    pretrained_dict = torch.load(dp1_PATH + 'stage3_hard.pt')
+    pretrained_dict2 = torch.load(dp1_PATH +'fashion_detector.pt')
+    model_dict = model.state_dict()
+    # 0. rename keys to use in torchvision
+    pretrained_dict['0.weight'] = pretrained_dict.pop('conv1_1.weight')
+    pretrained_dict['2.weight'] = pretrained_dict.pop('conv1_2.weight')
+    pretrained_dict['5.weight'] = pretrained_dict.pop('conv2_1.weight')
+    pretrained_dict['7.weight'] = pretrained_dict.pop('conv2_2.weight')
+    pretrained_dict['10.weight'] = pretrained_dict.pop('conv3_1.weight')
+    pretrained_dict['12.weight'] = pretrained_dict.pop('conv3_2.weight')
+    pretrained_dict['14.weight'] = pretrained_dict.pop('conv3_3.weight')
+    pretrained_dict['17.weight'] = pretrained_dict.pop('conv4_1.weight')
+    pretrained_dict['19.weight'] = pretrained_dict.pop('conv4_2.weight')
+    pretrained_dict['21.weight'] = pretrained_dict.pop('conv4_3.weight')
+    pretrained_dict['24.weight'] = pretrained_dict.pop('conv5_1.weight')
+    pretrained_dict['26.weight'] = pretrained_dict.pop('conv5_2.weight')
+    pretrained_dict['28.weight'] = pretrained_dict.pop('conv5_3.weight')
+    pretrained_dict['31.weight'] = pretrained_dict.pop('fc6.weight')
+
+    pretrained_dict['0.bias'] = pretrained_dict.pop('conv1_1.bias')
+    pretrained_dict['2.bias'] = pretrained_dict.pop('conv1_2.bias')
+    pretrained_dict['5.bias'] = pretrained_dict.pop('conv2_1.bias')
+    pretrained_dict['7.bias'] = pretrained_dict.pop('conv2_2.bias')
+    pretrained_dict['10.bias'] = pretrained_dict.pop('conv3_1.bias')
+    pretrained_dict['12.bias'] = pretrained_dict.pop('conv3_2.bias')
+    pretrained_dict['14.bias'] = pretrained_dict.pop('conv3_3.bias')
+    pretrained_dict['17.bias'] = pretrained_dict.pop('conv4_1.bias')
+    pretrained_dict['19.bias'] = pretrained_dict.pop('conv4_2.bias')
+    pretrained_dict['21.bias'] = pretrained_dict.pop('conv4_3.bias')
+    pretrained_dict['24.bias'] = pretrained_dict.pop('conv5_1.bias')
+    pretrained_dict['26.bias'] = pretrained_dict.pop('conv5_2.bias')
+    pretrained_dict['28.bias'] = pretrained_dict.pop('conv5_3.bias')
+    pretrained_dict['31.bias'] = pretrained_dict.pop('fc6.bias')
+    # 1. filter out unnecessary keys
+    pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
+    
+    #################################################################
     model.roi_heads.keypoint_predictor = KeypointRCNNPredictor(in_features_keypoint, num_keypoints)
     return model
 
@@ -162,10 +200,7 @@ def get_model_keypoint_detection_custom(num_classes, num_keypoints):
     pretrained_dict['31.bias'] = pretrained_dict.pop('fc6.bias')
     # 1. filter out unnecessary keys
     pretrained_dict = {k: v for k, v in pretrained_dict.items() if k in model_dict}
-    # 2. overwrite entries in the existing state dict
-    model_dict.update(pretrained_dict) 
-    # 3. load the new state dict
-    backbone.load_state_dict(model_dict)
+    
     #################################################################
     backbone.out_channels = 512
 
