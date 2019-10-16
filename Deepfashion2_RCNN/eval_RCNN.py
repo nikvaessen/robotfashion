@@ -70,7 +70,9 @@ def keypoint_detection_api(model, img_path, cat_names, threshold=0.5, rect_th=3,
                 keypoints_viz.append([point[0], point[1]])
         rgb_col = colours[random.randrange(0,10)]
         for point_viz in keypoints_viz:
-            cv2.circle(img, tuple(point_viz), 8, tuple(rgb_col), -1)        
+            cv2.circle(img, tuple(point_viz), 8, tuple(rgb_col), -1)
+        for j in range(len(keypoints_viz) - 1):
+            cv2.line(img, tuple(keypoints_viz[j]), tuple(keypoints_viz[j + 1]) , tuple(rgb_col), 2)
         cv2.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=rect_th)
         cv2.putText(img,pred_cls[i], boxes[i][0], cv2.FONT_HERSHEY_SIMPLEX, text_size, (0,255,0),thickness=text_th)
         keypoints_dest.append(keypoints_show)
