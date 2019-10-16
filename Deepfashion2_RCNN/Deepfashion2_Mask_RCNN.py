@@ -1,7 +1,8 @@
 from train_RCNN import train_RCNN, get_model_instance_segmentation, get_model_keypoint_detection
 from myconfig import *
 import myutils
-
+import torch
+from eval_RCNN import *
 #################################################################
 # Main function for Mask(Segments) RCNN training and evaluation
 #################################################################
@@ -13,9 +14,7 @@ def main():
     if not inference_only:
         train_RCNN(model, path2data, path2json, weight_path)
     else:
-        model.eval()
-        #Instance segmentation api to illustrate masks
-        myutils.instance_segmentation_api(model, './penguins.jpg', COCO_INSTANCE_CATEGORY_NAMES, 0.75)
+        eval_RCNN(model, instance_segmentation_api)
     print("That's it!")
 
 

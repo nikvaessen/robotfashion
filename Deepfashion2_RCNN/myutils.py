@@ -1,8 +1,13 @@
 from __future__ import print_function
 from collections import defaultdict, deque
 from PIL import Image
+from torch.autograd import Variable
+
+import matplotlib
 import matplotlib.pyplot as plt
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
 import torch.distributed as dist
 import mytransforms as T
 import torchvision
@@ -16,6 +21,8 @@ import time
 import errno
 import os
 
+from tqdm import tqdm, trange
+from myconfig import *
 
 #################################################################
 # Utility functions gathered from the internet to help 
@@ -23,86 +30,59 @@ import os
 # There are also helper functions for evaluation and illustration
 #################################################################
 
-colours = [[0, 255, 0],[0, 0, 255],[255, 0, 0],[0, 255, 255],[255, 255, 0],[255, 0, 255],[80, 70, 180],[250, 80, 190],[245, 145, 50],[70, 150, 250],[50, 190, 190]]
-
-a,b,c=colours[0]
-
-
 def random_colour_masks(image):
-  """
-  random_colour_masks
+    """
+    random_colour_masks
     parameters:
-      - image - predicted masks
+        - image - predicted masks
     method:
-      - the masks of each predicted object is given random colour for visualization
-  """
-  colours = [[0, 255, 0],[0, 0, 255],[255, 0, 0],[0, 255, 255],[255, 255, 0],[255, 0, 255],[80, 70, 180],[250, 80, 190],[245, 145, 50],[70, 150, 250],[50, 190, 190]]
-  r = np.zeros_like(image).astype(np.uint8)
-  g = np.zeros_like(image).astype(np.uint8)
-  b = np.zeros_like(image).astype(np.uint8)
-  r[image == 1], g[image == 1], b[image == 1] = colours[random.randrange(0,10)]
-  coloured_mask = np.stack([r, g, b], axis=2)
-  return coloured_mask
+        - the masks of each predicted object is given random colour for visualization
+    """
+    
+    r = np.zeros_like(image).astype(np.uint8)
+    g = np.zeros_like(image).astype(np.uint8)
+    b = np.zeros_like(image).astype(np.uint8)
+    r[image == 1], g[image == 1], b[image == 1] = colours[random.randrange(0,10)]
+    coloured_mask = np.stack([r, g, b], axis=2)
+    return coloured_mask
 
 def get_prediction(model, img_path, cat_names, threshold):
-  """
-  get_prediction
+    """
+    get_prediction
     parameters:
-      - model     - the model to be used
-      - img_path  - path of the input image
-      - cat_names - selected name for each category
-      - threshold - the confidence interval for making predictions
+        - model     - the model to be used
+        - img_path  - path of the input image
+        - cat_names - selected name for each category
+        - threshold - the confidence interval for making predictions
     method:
-      - Image is obtained from the image path
-      - the image is converted to image tensor using PyTorch's Transforms
-      - image is passed through the model to get the predictions
-      - masks, classes and bounding boxes are obtained from the model and soft masks are made binary(0 or 1) on masks
+        - Image is obtained from the image path
+        - the image is converted to image tensor using PyTorch's Transforms
+        - image is passed through the model to get the predictions
+        - masks, classes and bounding boxes are obtained from the model and soft masks are made binary(0 or 1) on masks
         ie: eg. segment of cat is made 1 and rest of the image is made 0
     
-  """
-  img = Image.open(img_path)
-  transform = T.Compose([T.ToTensor()])
-  img = transform(img)
-  img = img.cuda()
-  pred = model([img])
-  pred_score = list(pred[0]['scores'].detach().cpu().numpy())
-  pred_t = [pred_score.index(x) for x in pred_score if x>threshold][-1]
-  masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
-  pred_class = [cat_names[i] for i in list(pred[0]['labels'].cpu().numpy())]
-  pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().cpu().numpy())]
-  masks = masks[:pred_t+1]
-  pred_boxes = pred_boxes[:pred_t+1]
-  pred_class = pred_class[:pred_t+1]
-  return masks, pred_boxes, pred_class
-
-
-def instance_segmentation_api(model, img_path, cat_names, threshold=0.5, rect_th=3, text_size=3, text_th=3):
-  """
-  instance_segmentation_api
-    parameters:
-      - model     - the model to be used
-      - img_path  - path of the input image
-      - cat_names - selected name for each category
-      - threshold - the confidence interval for making predictions
-    method:
-      - prediction is obtained by get_prediction
-      - each mask is given random color
-      - each mask is added to the image in the ration 1:0.8 with opencv
-      - final output is displayed
-  """
-  masks, boxes, pred_cls = get_prediction(model, img_path, cat_names, threshold)
-  img = cv2.imread(img_path)
-  img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-  for i in range(len(masks)):
-    rgb_mask = random_colour_masks(masks[i])
-    img = cv2.addWeighted(img, 1, rgb_mask, 0.5, 0)
-    cv2.rectangle(img, boxes[i][0], boxes[i][1],color=(0, 255, 0), thickness=rect_th)
-    cv2.putText(img,pred_cls[i], boxes[i][0], cv2.FONT_HERSHEY_SIMPLEX, text_size, (0,255,0),thickness=text_th)
-  plt.figure(figsize=(20,30))
-  plt.imshow(img)
-  plt.xticks([])
-  plt.yticks([])
-  plt.show()
+    """
+    img = Image.open(img_path)
+    transform = T.Compose([T.ToTensor()])
+    img = transform(img)
+    if use_cuda:
+        img = img.cuda()
+    pred = model([img])
+    pred_score = list(pred[0]['scores'].detach().cpu().numpy())
+    pred_t = [pred_score.index(x) for x in pred_score if x>threshold][-1]
+    masks = None
+    if 'masks' in pred[0]:
+        masks = (pred[0]['masks']>0.5).squeeze().detach().cpu().numpy()
+    elif 'keypoints' in pred[0]:
+        masks = (pred[0]['keypoints']).squeeze().detach().cpu().numpy()
+    pred_class = [cat_names[i] for i in list(pred[0]['labels'].cpu().numpy())]
+    pred_id = [i for i in list(pred[0]['labels'].cpu().numpy())]
+    pred_boxes = [[(i[0], i[1]), (i[2], i[3])] for i in list(pred[0]['boxes'].detach().cpu().numpy())]
+    masks = masks[:pred_t+1]
+    pred_boxes = pred_boxes[:pred_t+1]
+    pred_class = pred_class[:pred_t+1]
+    pred_id = pred_id[:pred_t+1]
+    return masks, pred_boxes, pred_class, pred_id
 
 class SmoothedValue(object):
     """Track a series of values and provide access to smoothed values over a
@@ -299,31 +279,33 @@ class MetricLogger(object):
                 'time: {time}',
                 'data: {data}'
             ])
-        MB = 1024.0 * 1024.0
-        for obj in iterable:
-            data_time.update(time.time() - end)
-            yield obj
-            iter_time.update(time.time() - end)
-            if i % print_freq == 0 or i == len(iterable) - 1:
-                eta_seconds = iter_time.global_avg * (len(iterable) - i)
-                eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
-                if torch.cuda.is_available():
-                    print(log_msg.format(
-                        i, len(iterable), eta=eta_string,
-                        meters=str(self),
-                        time=str(iter_time), data=str(data_time),
-                        memory=torch.cuda.max_memory_allocated() / MB))
-                else:
-                    print(log_msg.format(
-                        i, len(iterable), eta=eta_string,
-                        meters=str(self),
-                        time=str(iter_time), data=str(data_time)))
-            i += 1
-            end = time.time()
-        total_time = time.time() - start_time
-        total_time_str = str(datetime.timedelta(seconds=int(total_time)))
-        print('{} Total time: {} ({:.4f} s / it)'.format(
-            header, total_time_str, total_time / len(iterable)))
+        MB = 1024.0 * 1024.0       
+        with tqdm(total=len(iterable)) as pbar:
+            for obj in iterable:
+                data_time.update(time.time() - end)
+                yield obj
+                iter_time.update(time.time() - end)
+                pbar.update(1)
+                if i % print_freq == 0 or i == len(iterable) - 1:
+                    eta_seconds = iter_time.global_avg * (len(iterable) - i)
+                    eta_string = str(datetime.timedelta(seconds=int(eta_seconds)))
+                    if torch.cuda.is_available():
+                        print(log_msg.format(
+                            i, len(iterable), eta=eta_string,
+                            meters=str(self),
+                            time=str(iter_time), data=str(data_time),
+                            memory=torch.cuda.max_memory_allocated() / MB))
+                    else:
+                        print(log_msg.format(
+                            i, len(iterable), eta=eta_string,
+                            meters=str(self),
+                            time=str(iter_time), data=str(data_time)))
+                i += 1
+                end = time.time()
+            total_time = time.time() - start_time
+            total_time_str = str(datetime.timedelta(seconds=int(total_time)))
+            print('{} Total time: {} ({:.4f} s / it)'.format(
+                header, total_time_str, total_time / len(iterable)))
 
 
 def collate_fn(batch):
@@ -416,3 +398,60 @@ def init_distributed_mode(args):
                                          world_size=args.world_size, rank=args.rank)
     torch.distributed.barrier()
     setup_for_distributed(args.rank == 0)
+
+
+class VGG16(nn.Module):
+    def __init__(self):
+        super(VGG16, self).__init__()
+        # conv layers: (in_channel size, out_channels size, kernel_size, stride, padding)
+        self.conv1_1 = nn.Conv2d(3, 64, kernel_size=3, padding=1)
+        self.conv1_2 = nn.Conv2d(64, 64, kernel_size=3, padding=1)
+
+        self.conv2_1 = nn.Conv2d(64, 128, kernel_size=3, padding=1)
+        self.conv2_2 = nn.Conv2d(128, 128, kernel_size=3, padding=1)
+
+        self.conv3_1 = nn.Conv2d(128, 256, kernel_size=3, padding=1)
+        self.conv3_2 = nn.Conv2d(256, 256, kernel_size=3, padding=1)
+        self.conv3_3 = nn.Conv2d(256, 256, kernel_size=3, padding=1)
+
+        self.conv4_1 = nn.Conv2d(256, 512, kernel_size=3, padding=1)
+        self.conv4_2 = nn.Conv2d(512, 512, kernel_size=3, padding=1)
+        self.conv4_3 = nn.Conv2d(512, 512, kernel_size=3, padding=1)
+
+        self.conv5_1 = nn.Conv2d(512, 512, kernel_size=3, padding=1)
+        self.conv5_2 = nn.Conv2d(512, 512, kernel_size=3, padding=1)
+        self.conv5_3 = nn.Conv2d(512, 512, kernel_size=3, padding=1)
+
+        # max pooling (kernel_size, stride)
+        self.pool = nn.MaxPool2d(2, 2)
+
+        # fully conected layers:
+        self.fc6 = nn.Linear(7*7*512, 4096)
+        self.fc7 = nn.Linear(4096, 4096)
+        self.fc8 = nn.Linear(4096, 1000)
+
+    def forward(self, x, training=True):
+        x = F.relu(self.conv1_1(x))
+        x = F.relu(self.conv1_2(x))
+        x = self.pool(x)
+        x = F.relu(self.conv2_1(x))
+        x = F.relu(self.conv2_2(x))
+        x = self.pool(x)
+        x = F.relu(self.conv3_1(x))
+        x = F.relu(self.conv3_2(x))
+        x = F.relu(self.conv3_3(x))
+        x = self.pool(x)
+        x = F.relu(self.conv4_1(x))
+        x = F.relu(self.conv4_2(x))
+        x = F.relu(self.conv4_3(x))
+        x = self.pool(x)
+        x = F.relu(self.conv5_1(x))
+        x = F.relu(self.conv5_2(x))
+        x = F.relu(self.conv5_3(x))
+        x = self.pool(x)
+        x = x.view(-1, 7 * 7 * 512)
+        x = F.relu(self.fc6(x))
+        x = F.dropout(x, 0.5, training=training)
+        x = F.relu(self.fc7(x))
+        x = F.dropout(x, 0.5, training=training)
+        return x

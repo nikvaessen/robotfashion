@@ -120,9 +120,10 @@ num_images = 30000
 
 sub_index = 0 # the index of ground truth instance
 for num in tqdm(range(1, num_images+1)):
-    json_name = './data/annos/' + str(num).zfill(6)+'.json'
-    image_name = './data/image/' + str(num).zfill(6)+'.jpg'
-
+    ############ PATH TO IMAGES IS SPECIFIED HERE ############
+    json_name = '../data/annos/' + str(num).zfill(6)+'.json'
+    image_name = '../data/image/' + str(num).zfill(6)+'.jpg'
+    ##########################################################
     if (num>=0):
         imag = Image.open(image_name)
         width, height = imag.size
