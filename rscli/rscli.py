@@ -183,7 +183,6 @@ class State(Enum):
 
 class UiManager:
     def __init__(self, window, rsctx: rs.context):
-        self.recording_threads = []
         self.state: State = State.MAIN
         self.devices_connected: int = 0
         self.win = window
@@ -197,13 +196,17 @@ class UiManager:
         self.error: str = None
         self.error_deadline: float = None
 
-        self.recording_thread: RecordingThread = None
+        self.recording_threads = []
+        self.image_processing_threads = []
 
-        self.data_queue = Queue(100)
-        self.image_processing_thread: ImageProcessingThread = ImageProcessingThread(
-            self.data_queue
-        )
-        self.image_processing_thread.start()
+        self.data_queue = Queue()
+
+        for n in range(0, 5):
+            image_processing_thread: ImageProcessingThread = ImageProcessingThread(
+                self.data_queue
+            )
+            image_processing_thread.start()
+            self.image_processing_threads.append(image_processing_thread)
 
     def handle_keyboard_input(self):
         key = self._get_input_key()
@@ -243,8 +246,9 @@ class UiManager:
 
                 def f(written):
                     if written == "y" or written == "yes":
-                        self.image_processing_thread.stop()
-                        self.image_processing_thread.join()
+                        for pt in self.image_processing_threads:
+                            pt.stop()
+                            pt.join()
                         exit(0)
 
                 self.written_input = ""
@@ -259,7 +263,8 @@ class UiManager:
                 self.stop_recording()
 
             elif key == "m":
-                self.recording_thread.mark_next_frame()
+                for rt in self.recording_threads:
+                    rt.mark_next_frame()
 
     def _get_input_key(self) -> str or None:
         try:
@@ -303,9 +308,11 @@ class UiManager:
             )
 
         elif self.state == State.RECORDING:
-            recording_time = self.recording_thread.get_recording_time()
-            frame_count = self.recording_thread.get_frame_count()
-            fps = self.recording_thread.get_estimated_fps()
+            recording_thread = self.recording_threads[0]
+
+            recording_time = recording_thread.get_recording_time()
+            frame_count = recording_thread.get_frame_count()
+            fps = recording_thread.get_estimated_fps()
 
             self.win.addstr(
                 "\nrecording time: {:5.0f} seconds\t".format(recording_time)
@@ -357,8 +364,11 @@ class UiManager:
             device_ids.append(dev.get_info(rs.camera_info.serial_number))
 
         self.recording_threads.clear()
+
         for dev_id in device_ids:
-            record_thread = RecordingThread(pathlib.Path(os.getcwd()), self.data_queue, self.rsctx, dev_id)
+            record_thread = RecordingThread(
+                pathlib.Path(self.current_dir), self.data_queue, self.rsctx, dev_id
+            )
             record_thread.start()
             self.recording_threads.append(record_thread)
 
@@ -431,6 +441,18 @@ def record_without_gui_to_see_exceptions():
             imageio.imwrite(img_fn, data)
 
 
+def curses_no_render():
+    rsctx = rs.context()
+
+    manager = UiManager(None, rsctx)
+    manager.start_recording()
+
+    sleep(10)
+
+    manager.stop_recording()
+
+
 if __name__ == "__main__":
-    # curses.wrapper(main)
-    record_without_gui_to_see_exceptions()
+    curses.wrapper(main)
+    # record_without_gui_to_see_exceptions()
+    # curses_no_render()
