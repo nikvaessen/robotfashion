@@ -183,6 +183,7 @@ class State(Enum):
 
 class UiManager:
     def __init__(self, window, rsctx: rs.context):
+        self.recording_threads = []
         self.state: State = State.MAIN
         self.devices_connected: int = 0
         self.win = window
@@ -350,14 +351,23 @@ class UiManager:
 
         self.state = State.RECORDING
 
-        self.recording_thread = RecordingThread(
-            self.current_dir, self.data_queue, self.rsctx
-        )
-        self.recording_thread.start()
+        device_ids = []
+
+        for dev in self.rsctx.query_devices():
+            device_ids.append(dev.get_info(rs.camera_info.serial_number))
+
+        self.recording_threads.clear()
+        for dev_id in device_ids:
+            record_thread = RecordingThread(pathlib.Path(os.getcwd()), self.data_queue, self.rsctx, dev_id)
+            record_thread.start()
+            self.recording_threads.append(record_thread)
 
     def stop_recording(self):
-        self.recording_thread.stop()
-        self.recording_thread.join()
+        for rt in self.recording_threads:
+            rt.stop()
+
+        for rt in self.recording_threads:
+            rt.join()
 
         self.data_queue.join()
 
