@@ -17,8 +17,6 @@ except ImportError:
     print("One or more dependencies not found. Run 'pip install -r requirements.txt'")
     exit(1)
 
-DESIRED_FPS = 6
-
 
 class StoppableThread(Thread):
     def __init__(self):

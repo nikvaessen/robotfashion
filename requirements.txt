@@ -1,3 +1,4 @@
 imageio
 pyrealsense2
 numpy
+lycon # sudo apt-get install cmake build-essential libjpeg-dev libpng-dev
