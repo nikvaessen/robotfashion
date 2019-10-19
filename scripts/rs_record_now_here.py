@@ -6,21 +6,16 @@ import time
 
 from queue import Queue
 
+import rstools
 import lycon
-import numpy as np
 
-from rstools import (
-    ImageProcessingThread,
-    RecordingThread,
-    generate_context,
-    query_device_ids,
-)
+import numpy as np
+import pyrealsense2 as rs
 
 
 class Manager:
     def __init__(self, num_processing_threads=5):
-        self.ctx = generate_context()
-        time.sleep(1)
+        self.ctx = rs.context()
 
         self.device_ids = []
         self.processing_threads = []
@@ -33,7 +28,7 @@ class Manager:
 
     def start_recording(self):
         self.device_ids.clear()
-        self.device_ids += query_device_ids(self.ctx)
+        self.device_ids += rstools.query_device_ids(self.ctx)
 
         print("recognized {} devices: {}".format(len(self.device_ids), self.device_ids))
 
@@ -41,13 +36,13 @@ class Manager:
             exit(0)
 
         for _ in range(0, self.num_processing_threads):
-            processing_thread = ImageProcessingThread(self.queue)
+            processing_thread = rstools.ImageProcessingThread(self.queue)
             processing_thread.start()
 
             self.processing_threads.append(processing_thread)
 
         for dev_id in self.device_ids:
-            record_thread = RecordingThread(
+            record_thread = rstools.RecordingThread(
                 pathlib.Path(os.getcwd()), self.queue, self.ctx, dev_id
             )
             record_thread.start()
@@ -90,15 +85,15 @@ class Manager:
 
         print("\n")
 
-    @staticmethod
-    def convert_image():
-        for file in os.listdir(os.getcwd()):
-            if "npz" in file:
-                print(file)
-                data = np.load(file)["data"]
-
-                filename = file.split(".")[1] = ".png"
-                lycon.save(filename, data)
+    # @staticmethod
+    # def convert_image():
+    #     for file in os.listdir(os.getcwd()):
+    #         if "npz" in file:
+    #             print(file)
+    #             data = np.load(file)["data"]
+    #
+    #             filename = file.split(".")[1] = ".png"
+    #             lycon.save(filename, data)
 
 
 def main():
@@ -107,14 +102,15 @@ def main():
     try:
         manager.start_recording()
 
-        while True:
-            time.sleep(1)
-            manager.print_state()
+        # while True:
+        #     time.sleep(1)
+        #     manager.print_state()
 
     except KeyboardInterrupt:
         manager.stop_threads()
     finally:
-        manager.convert_image()
+        pass
+        # manager.convert_image()
 
 
 if __name__ == "__main__":

@@ -4,7 +4,6 @@ import time
 from queue import Queue, Empty
 from threading import Thread, Event
 
-import lycon
 import numpy as np
 import pyrealsense2 as rs
 
@@ -151,5 +150,3 @@ class ImageProcessingThread(StoppableThread):
         np.savez_compressed(
             package.storage_path, data=package.data, marked=package.marked
         )
-
-        lycon.save()
