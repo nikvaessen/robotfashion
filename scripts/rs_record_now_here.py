@@ -5,17 +5,34 @@ import pathlib
 import time
 
 from queue import Queue
+from threading import Thread
 
 import rstools
-import lycon
 
 import numpy as np
 import pyrealsense2 as rs
 
+# LYCON LIBRARY COLLIDES WITH RSTOOLS SO IMPORT IT LAST
+import lycon
+
+
+class PngConverterThread(Thread):
+    def __init__(self, queue: Queue):
+        super().__init__()
+        self.q: Queue = queue
+
+    def run(self) -> None:
+        while not self.q.empty():
+            pass
+            filename, data = self.q.get()
+            lycon.save(filename, data)
+            self.q.task_done()
+
 
 class Manager:
-    def __init__(self, num_processing_threads=5):
-        self.ctx = rs.context()
+    def __init__(self, dir_path: pathlib.Path, num_processing_threads=5):
+        self.ctx: rs.context = rs.context()
+        self.dir_path: pathlib = dir_path
 
         self.device_ids = []
         self.processing_threads = []
@@ -32,9 +49,6 @@ class Manager:
 
         print("recognized {} devices: {}".format(len(self.device_ids), self.device_ids))
 
-        if len(self.device_ids) == 0:
-            exit(0)
-
         for _ in range(0, self.num_processing_threads):
             processing_thread = rstools.ImageProcessingThread(self.queue)
             processing_thread.start()
@@ -43,7 +57,7 @@ class Manager:
 
         for dev_id in self.device_ids:
             record_thread = rstools.RecordingThread(
-                pathlib.Path(os.getcwd()), self.queue, self.ctx, dev_id
+                pathlib.Path(self.dir_path), self.queue, self.ctx, dev_id
             )
             record_thread.start()
 
@@ -85,32 +99,52 @@ class Manager:
 
         print("\n")
 
-    # @staticmethod
-    # def convert_image():
-    #     for file in os.listdir(os.getcwd()):
-    #         if "npz" in file:
-    #             print(file)
-    #             data = np.load(file)["data"]
-    #
-    #             filename = file.split(".")[1] = ".png"
-    #             lycon.save(filename, data)
+    def convert_image(self):
+        queue = Queue()
+
+        for file in os.listdir(str(self.dir_path)):
+            if "npz" in file and "color" in file:
+                np_file = np.load(os.path.join(str(self.dir_path), file))
+                data = np_file["data"]
+
+                filename = file.split(".")[0] + ".png"
+                filename = os.path.join(str(self.dir_path), "pictures", filename)
+                print(filename, data.shape)
+
+                queue.put((filename, data))
+
+        threads = []
+        for _ in range(self.num_processing_threads):
+            t = PngConverterThread(queue)
+            t.start()
+
+            threads.append(t)
+
+        for t in threads:
+            t.join()
 
 
 def main():
-    manager = Manager()
+    path = os.getcwd()
 
+    actual_path = os.path.join(path, time.strftime("%Y-%m-%d_%H-%M-%S"))
+    picture_path = os.path.join(actual_path, "pictures")
+    os.mkdir(actual_path)
+    os.mkdir(picture_path)
+
+    manager = Manager(actual_path)
     try:
         manager.start_recording()
 
-        # while True:
-        #     time.sleep(1)
-        #     manager.print_state()
+        while True:
+            time.sleep(1)
+            manager.print_state()
 
     except KeyboardInterrupt:
         manager.stop_threads()
     finally:
+        manager.convert_image()
         pass
-        # manager.convert_image()
 
 
 if __name__ == "__main__":
