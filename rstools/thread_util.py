@@ -29,7 +29,13 @@ class FramePackage:
 
 class RecordingThread(StoppableThread):
     def __init__(
-        self, path: pathlib.Path, queue: Queue, ctx: rs.context, dev_id: str, fps=6
+        self,
+        path: pathlib.Path,
+        queue: Queue,
+        ctx: rs.context,
+        dev_id: str,
+        fps=6,
+        filename_id="",
     ):
         super().__init__()
 
@@ -43,6 +49,8 @@ class RecordingThread(StoppableThread):
         self._start_ts = time.time()
 
         self.fps = fps
+
+        self.filename_id = filename_id
 
     def run(self) -> None:
         pipe = rs.pipeline(self.ctx)
@@ -81,8 +89,8 @@ class RecordingThread(StoppableThread):
                     color_package = FramePackage(
                         color_image,
                         self.path
-                        / "dev_{}_frame_{}_color".format(
-                            self.dev_id, self._frame_count
+                        / "{}dev_{}_frame_{}_color".format(
+                            self.filename_id, self.dev_id, self._frame_count
                         ),
                         self.is_marked(),
                     )
@@ -90,8 +98,8 @@ class RecordingThread(StoppableThread):
                     depth_package = FramePackage(
                         depth_image,
                         self.path
-                        / "dev_{}_frame_{}_depth".format(
-                            self.dev_id, self._frame_count
+                        / "{}dev_{}_frame_{}_depth".format(
+                            self.filename_id, self.dev_id, self._frame_count
                         ),
                         self.is_marked(),
                     )

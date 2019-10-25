@@ -49,6 +49,8 @@ class Manager:
 
         print("recognized {} devices: {}".format(len(self.device_ids), self.device_ids))
 
+        filename_id = str(int(time.time())) + "_"
+
         for _ in range(0, self.num_processing_threads):
             processing_thread = rstools.ImageProcessingThread(self.queue)
             processing_thread.start()
@@ -57,7 +59,11 @@ class Manager:
 
         for dev_id in self.device_ids:
             record_thread = rstools.RecordingThread(
-                pathlib.Path(self.dir_path), self.queue, self.ctx, dev_id
+                pathlib.Path(self.dir_path),
+                self.queue,
+                self.ctx,
+                dev_id,
+                filename_id=filename_id,
             )
             record_thread.start()
 
