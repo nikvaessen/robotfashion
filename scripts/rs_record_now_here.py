@@ -149,7 +149,7 @@ def main():
     except KeyboardInterrupt:
         manager.stop_threads()
     finally:
-        manager.convert_image()
+        # manager.convert_image()
         pass
 
 
