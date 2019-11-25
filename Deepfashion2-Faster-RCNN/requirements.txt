@@ -1,0 +1,8 @@
+cython
+pycocotools
+tqdm
+pillow
+numpy
+opencv-python
+matplotlib
+apt install -y libsm6 libxext6 libglib2.0-0 libxrender1
