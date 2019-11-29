@@ -67,10 +67,10 @@ def generateVOC2Json(rootDir,xmlFiles):
 						annotation["iscrowd"] = 0
 						#annotation["image_id"] = str(doc['annotation']['filename']).split('.jpg')[0] #attrDict["images"]["id"]
 						annotation["image_id"] = image_id
-						x1 = int(doc['annotation']['object']["bndbox"]["xmin"])  - 1
-						y1 = int(doc['annotation']['object']["bndbox"]["ymin"]) - 1
-						x2 = int(doc['annotation']['object']["bndbox"]["xmax"]) - x1
-						y2 = int(doc['annotation']['object']["bndbox"]["ymax"]) - y1
+						x1 = int(doc['annotation']['object']["bndbox"]["xmin"]) 
+						y1 = int(doc['annotation']['object']["bndbox"]["ymin"])
+						x2 = int(doc['annotation']['object']["bndbox"]["xmax"])
+						y2 = int(doc['annotation']['object']["bndbox"]["ymax"])
 						annotation["bbox"] = [x1, y1, x2, y2]
 						annotation["area"] = float(x2 * y2)
 						annotation["category_id"] = value["id"]
