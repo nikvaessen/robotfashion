@@ -12,15 +12,15 @@ colours = [[0, 255, 0],[0, 0, 255],[255, 0, 0],[0, 255, 255],[255, 255, 0],[255,
 num_keypoints = 294
 num_classes = 14
 # define path to our dataset and defined annotations
-path2data = "../../data/image/"
-path2json = "./coco_annos.json"
+path2data = "../set8/"
+path2json = "./receipts_valid.json"
 
 dp1_PATH = "../"
 
 # DO NOT change this one, uncomment the next one in case of pretrained weights
 weight_path = None
 # uncomment to load pretrained weights
-weight_path = "../deepfashion2_rcnn_trained_2.pth"
+#weight_path = "../deepfashion2_rcnn_trained_2.pth"
 # specify where to save the resulting weights
 #save_weights_to = "./deepfashion2_rcnn_trained.pth"
 
@@ -28,13 +28,15 @@ weight_path = "../deepfashion2_rcnn_trained_2.pth"
 num_epochs = 5
 
 # decide whether we want to use the model to train or to infer
-inference_only = True
+inference_only = False
 # configure to whether cuda
 use_cuda = True
 # configure whether we have a GUI
 is_interactive = False
 # configure images that must be evaluated
-images_to_eval = ['../set12/' + f for f in os.listdir('../set12') if re.match(r'.+\.(jpg|jpeg|png)', f)]
+root_dir = '.'
+
+images_to_eval = [root_dir + '/' + f for f in os.listdir(root_dir) if re.match(r'.+\.(jpg|jpeg|png)', f)]
 # specify where to save the resulting annotations
 save_annos_dir = "./annos/"
 # specify the confidence interval of detections
