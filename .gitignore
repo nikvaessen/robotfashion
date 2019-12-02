@@ -109,3 +109,4 @@ venv.bak/
 
 .idea
 /data/
+/data_collection/scripts/data/
