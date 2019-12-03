@@ -3,6 +3,9 @@ import shutil
 import xml.etree.ElementTree as ET
 
 from enum import Enum
+
+from collections import defaultdict
+import json
 import re
 
 class DF2(Enum):
@@ -233,12 +236,40 @@ def find_pairs(xml_paths, png_paths):
     return matched, non_matched
 
 
+def labels_to_DF_format(xml_paths):
+
+    invalid_labels = []
+    for xml_path in xml_paths:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+        
+        object_ = root.find('object')
+        name_ = object_.find("name")
+        clean_tag = ET.SubElement(object_,'clean_label')
+
+        clean_tag.text = "1" 
+        old_label = name_.text
+        clean_label = class_conversion_table.get(old_label)
+        new_label = df2_enum_to_name.get(clean_label)
+        if clean_label != None and new_label != None:
+            name_.text = new_label
+        else:
+            invalid_labels.append(old_label)
+
+        # Overwrite XML file with the new labels
+        tree.write(xml_path)
+
+    print(f"Labels not valid : {set(invalid_labels)}")
+
 def main():
-    s = parse_folder("/home/nik/kth/y2/project_in_ds/data/annotated zips")
+    s = parse_folder("/home/datta/lab/_KTH_ACADEMIA/pj_ds/")
 
     xml_paths = s["xml_paths"]
     png_paths = s["png_paths"]
     classes = s["classes"]
+
+    labels_to_DF_format(xml_paths)
+    exit()
 
     print(len(xml_paths))
     print(len(png_paths))
