@@ -256,6 +256,8 @@ def labels_to_DF_format(xml_paths):
         new_label = df2_enum_to_name.get(clean_label)
         if clean_label != None and new_label != None:
             name_.text = new_label
+        elif clean_label == discard_item:
+            new_label == discard_item
         else:
             invalid_labels.append(old_label)
 
@@ -271,6 +273,7 @@ def labels_to_DF_format(xml_paths):
         if meta_data[clothing_id].get("frames") == None:
             meta_data[clothing_id]["frames"] = 1
         else:
+            
             meta_data[clothing_id]["frames"] += 1
 
     print(f"Labels not valid : {set(invalid_labels)}")
@@ -295,7 +298,7 @@ def main():
     classes = s["classes"]
 
     # TODO
-    # labels_to_DF_format(xml_paths)
+    labels_to_DF_format(xml_paths)
 
     print(len(xml_paths))
     print(len(png_paths))
