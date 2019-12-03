@@ -4,6 +4,10 @@ import xml.etree.ElementTree as ET
 
 from enum import Enum
 
+from collections import defaultdict
+import json
+import re
+
 
 class DF2(Enum):
     short_sleeve_top = 1
@@ -130,15 +134,15 @@ def generate_dataset(xml_png_pairs):
         if not os.path.exists(class_path):
             os.mkdir(class_path)
 
-    class_count = {c: 0 for c in DF2}
+    class_count = {c: 0 for c in df2_enum_to_name.values()}
     unique_item_count = {}
     unique_item_paths = {}
 
     for xml_path, png_path in xml_png_pairs:
-        raw_class = get_class_from_xml(xml_path)
-        clean_class = class_conversion_table[raw_class]
+        clean_class = get_class_from_xml(xml_path)
 
-        if clean_class == discard_item:
+        if clean_class == discard_item or \
+           clean_class not in df2_enum_to_name.values():
             continue
 
         class_count[clean_class] += 1
@@ -146,7 +150,8 @@ def generate_dataset(xml_png_pairs):
         xml_fn = os.path.split(xml_path)[1]
         png_fn = os.path.split(png_path)[1]
 
-        clothing_id = xml_fn.split("_")[2]
+        clothing_id = f'{xml_fn.split("_")[0]}_{xml_fn.split("_")[1]}'
+        clothing_id = re.sub('[,-]', '', clothing_id)
 
         if clothing_id in unique_item_count:
             unique_item_count[clothing_id] += 1
@@ -155,17 +160,18 @@ def generate_dataset(xml_png_pairs):
             unique_item_count[clothing_id] = 1
             unique_item_paths[clothing_id] = [(xml_path, png_path)]
 
-        class_path = df2_enum_to_name[clean_class]
+        class_path = clean_class
         new_xml_path = os.path.join(data_path, class_path, xml_fn)
         new_png_path = os.path.join(data_path, class_path, png_fn)
 
+        # TODO
         # shutil.copy(xml_path, new_xml_path)
         # shutil.copy(png_path, new_png_path)
 
     print(class_count)
 
     for key, value in class_count.items():
-        print(key.name, value)
+        print(key, value)
 
     print(unique_item_count)
     print(len(unique_item_count.items()))
@@ -185,7 +191,6 @@ def generate_dataset(xml_png_pairs):
             print(key, value)
             for a, b in unique_item_paths[key]:
                 print(a, b)
-
 
     print("incorrect: ", incorrect)
     for k, v in values.items():
@@ -210,8 +215,8 @@ def find_pairs(xml_paths, png_paths):
                 if matched_png[pidx]:
                     print("FOUND DUPLICATE")
                     print(xml_full_path, png_full_path, sep="\n")
+                    # TODO
                     exit()
-
                 matched.append((xml_full_path, png_full_path))
 
                 matched_xml[xidx] = True
@@ -232,12 +237,70 @@ def find_pairs(xml_paths, png_paths):
     return matched, non_matched
 
 
+def labels_to_DF_format(xml_paths):
+    # write meta data for each unique clothing item
+    meta_data = defaultdict(dict)
+
+    invalid_labels = []
+    for xml_path in xml_paths:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+
+        object_ = root.find('object')
+        name_ = object_.find("name")
+        clean_tag = ET.SubElement(object_, 'clean_label')
+
+        clean_tag.text = "1"
+        old_label = name_.text
+        clean_label = class_conversion_table.get(old_label)
+        new_label = df2_enum_to_name.get(clean_label)
+        if clean_label != None and new_label != None:
+            name_.text = new_label
+        elif clean_label == discard_item:
+            new_label == discard_item
+        elif new_label == None:
+            new_label = old_label
+            invalid_labels.append(old_label)
+
+        # Overwrite XML file with the new labels
+        tree.write(xml_path)
+
+        # store old labels
+        xml_fn = os.path.split(xml_path)[1]
+        clothing_id = f"{xml_fn.split('_')[0]}_{xml_fn.split('_')[1]}"
+        clothing_id = re.sub('[_-]', "", clothing_id)
+        meta_data[clothing_id]["raw_label"] = old_label
+        meta_data[clothing_id]["df_label"] = new_label
+        if meta_data[clothing_id].get("frames") == None:
+            meta_data[clothing_id]["frames"] = 1
+        else:
+
+            meta_data[clothing_id]["frames"] += 1
+
+    print(f"Labels not valid : {set(invalid_labels)}")
+
+    # save metadata to preserve old labels
+    s = ''
+    i = 1
+    meta_path = f"{os.path.dirname(os.getcwd())}/meta_data{s}.json"
+    while os.path.exists(meta_path):
+        s = f'({str(i)})'
+        meta_path = f"{os.path.dirname(os.getcwd())}/meta_data{s}.json"
+        i += 1
+
+    with open(meta_path, 'w+') as meta_file:
+        json.dump(meta_data, meta_file)
+
+
 def main():
-    s = parse_folder("/home/nik/kth/y2/project_in_ds/data/annotated zips")
+    s = parse_folder("/home/datta/lab/_KTH_ACADEMIA/pj_ds/")
 
     xml_paths = s["xml_paths"]
     png_paths = s["png_paths"]
     classes = s["classes"]
+
+    # TODO
+    labels_to_DF_format(xml_paths)
 
     print(len(xml_paths))
     print(len(png_paths))
