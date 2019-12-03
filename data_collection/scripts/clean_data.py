@@ -8,6 +8,7 @@ from collections import defaultdict
 import json
 import re
 
+
 class DF2(Enum):
     short_sleeve_top = 1
     long_sleeve_top = 2
@@ -139,18 +140,18 @@ def generate_dataset(xml_png_pairs):
 
     for xml_path, png_path in xml_png_pairs:
         clean_class = get_class_from_xml(xml_path)
-        # clean_class = class_conversion_table.get
-        # TODO
-        if clean_class == discard_item or clean_class == 'onesies':
+
+        if clean_class == discard_item or \
+           clean_class not in df2_enum_to_name.values():
             continue
-        
+
         class_count[clean_class] += 1
 
         xml_fn = os.path.split(xml_path)[1]
         png_fn = os.path.split(png_path)[1]
 
         clothing_id = f'{xml_fn.split("_")[0]}_{xml_fn.split("_")[1]}'
-        clothing_id = re.sub('[,-]','',clothing_id)
+        clothing_id = re.sub('[,-]', '', clothing_id)
 
         if clothing_id in unique_item_count:
             unique_item_count[clothing_id] += 1
@@ -190,7 +191,6 @@ def generate_dataset(xml_png_pairs):
             print(key, value)
             for a, b in unique_item_paths[key]:
                 print(a, b)
-
 
     print("incorrect: ", incorrect)
     for k, v in values.items():
@@ -245,12 +245,12 @@ def labels_to_DF_format(xml_paths):
     for xml_path in xml_paths:
         tree = ET.parse(xml_path)
         root = tree.getroot()
-        
+
         object_ = root.find('object')
         name_ = object_.find("name")
-        clean_tag = ET.SubElement(object_,'clean_label')
+        clean_tag = ET.SubElement(object_, 'clean_label')
 
-        clean_tag.text = "1" 
+        clean_tag.text = "1"
         old_label = name_.text
         clean_label = class_conversion_table.get(old_label)
         new_label = df2_enum_to_name.get(clean_label)
@@ -267,13 +267,13 @@ def labels_to_DF_format(xml_paths):
         # store old labels
         xml_fn = os.path.split(xml_path)[1]
         clothing_id = f"{xml_fn.split('_')[0]}_{xml_fn.split('_')[1]}"
-        clothing_id = re.sub('[_-]',"",clothing_id)
+        clothing_id = re.sub('[_-]', "", clothing_id)
         meta_data[clothing_id]["raw_label"] = old_label
         meta_data[clothing_id]["df_label"] = new_label
         if meta_data[clothing_id].get("frames") == None:
             meta_data[clothing_id]["frames"] = 1
         else:
-            
+
             meta_data[clothing_id]["frames"] += 1
 
     print(f"Labels not valid : {set(invalid_labels)}")
@@ -288,7 +288,8 @@ def labels_to_DF_format(xml_paths):
         i += 1
 
     with open(meta_path, 'w+') as meta_file:
-        json.dump(meta_data, meta_file)     
+        json.dump(meta_data, meta_file)
+
 
 def main():
     s = parse_folder("/home/datta/lab/_KTH_ACADEMIA/pj_ds/")
