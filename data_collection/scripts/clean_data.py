@@ -281,10 +281,10 @@ def labels_to_DF_format(xml_paths):
     # save metadata to preserve old labels
     s = ''
     i = 1
-    meta_path = f"{os.getcwd()}/meta_data{s}.json"
+    meta_path = f"{os.path.dirname(os.getcwd())}/meta_data{s}.json"
     while os.path.exists(meta_path):
         s = f'({str(i)})'
-        meta_path = f"{os.getcwd()}/meta_data{s}.json"
+        meta_path = f"{os.path.dirname(os.getcwd())}/meta_data{s}.json"
         i += 1
 
     with open(meta_path, 'w+') as meta_file:
