@@ -23,36 +23,30 @@ from torchvision.datasets import CIFAR10
 
 train_val_transform = transforms.Compose(
     [
-        # transforms.Pad((4, 4, 4, 4)),
-        # transforms.RandomCrop((32, 32)),
-        # transforms.RandomHorizontalFlip(),
         transforms.ToTensor(),
-        # values are between [0, 1], we want [-1, 1]
-        # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
 
 test_transform = transforms.Compose(
     [
         transforms.ToTensor(),
-        # values are between [0, 1], we want [-1, 1]
-        # transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5)),
     ]
 )
 
 num_classes = 14
 
+
 ################################################################################
 
 
-class FasterRCNNWithRoboFashion(pl.LightningModule):
+class FasterRCNNWithRobotFashion(pl.LightningModule):
     def __init__(self, hparams):
-        super(FasterRCNNWithRoboFashion, self).__init__()
+        super(FasterRCNNWithRobotFashion, self).__init__()
 
         self.hparams = hparams
 
-        self.split = hparams.train_val_split
-        self.num_data_loaders = hparams.num_data_loaders
+        # self.split = hparams.train_val_split
+        # self.num_data_loaders = hparams.num_data_loaders
 
         self._fast_rcnn_model: FasterRCNN = fasterrcnn_resnet50_fpn(
             pretrained_backbone=True, num_classes=14
@@ -62,7 +56,9 @@ class FasterRCNNWithRoboFashion(pl.LightningModule):
         self._prev_epoch = -1
 
     def forward(self, x):
-        return self._fast_rcnn_model(x)
+        # input should be tuple (images: List[Tensor], labels: List[Dict[Tensor]]
+
+        return self._fast_rcnn_model(*x)
 
     def training_step(self, batch, batch_idx):
         # REQUIRED

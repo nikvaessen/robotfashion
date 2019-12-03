@@ -1,5 +1,9 @@
 import os
 import zipfile
+import json
+
+import numpy as np
+import torch as t
 
 from .util import (
     download_file_from_google_drive,
@@ -10,10 +14,15 @@ from .util import (
 )
 
 from torchvision.datasets import VisionDataset
+from PIL import Image
+
+
+def get_root_data_folder(working_path):
+    return os.path.join(working_path, "deepfashion_2_data_folder")
 
 
 def has_correct_folder_structure(working_path):
-    root_path = os.path.join(working_path, "deepfashion_2_data_folder")
+    root_path = get_root_data_folder(working_path)
 
     folders = [
         # order:
@@ -57,7 +66,7 @@ def maybe_download_and_unzip_data(working_path, password: str):
             + "Decrypting the zip files will take SEVERAL HOURS"
         )
 
-    root_path = os.path.join(working_path, "deepfashion_2_data_folder")
+    root_path = get_root_data_folder(working_path)
 
     download_links = [
         # order:
@@ -131,42 +140,125 @@ class DeepFashion2(VisionDataset):
     modes = [train_mode, val_mode, test_mode]
 
     def __init__(
-        self,
-        working_path: str,
-        password: str,
-        mode: str,
-        transform=None,
-        target_transform=None,
+            self,
+            working_path: str,
+            mode: str,
+            password: str = None,
+            download_if_missing: bool = False,
+            transform=None,
     ):
-        super().__init__(
-            working_path, transform=transform, target_transform=target_transform
-        )
-
-        if not password:
-            raise PermissionError(
-                "Cannot access deepfashion2 data without the password."
-                + " See https://github.com/switchablenorms/DeepFashion2#download-the-data"
-            )
+        super().__init__(working_path, transform=transform, target_transform=None)
 
         if not has_correct_folder_structure(working_path):
+            if not download_if_missing:
+                raise ValueError(
+                    "cannot find (valid) DeepFashion2 data. Set download_if_missing=True to download dataset"
+                )
+
+            if not password:
+                raise PermissionError(
+                    "Cannot download deepfashion2 data without the password."
+                    + " See https://github.com/switchablenorms/DeepFashion2#download-the-data"
+                )
+
             maybe_download_and_unzip_data(working_path, password)
 
             if not has_correct_folder_structure(working_path):
-                raise Exception("Unable to get Deepfashion2 data")
+                raise Exception("Downloading and/or unzipping data failed")
 
         if mode not in DeepFashion2.modes:
             raise ValueError(f"mode {mode} should be one of {DeepFashion2.modes}")
 
         self.mode = mode
 
+        if mode == DeepFashion2.train_mode:
+            self.image_paths, self.label_paths = self.load_train_data()
+        elif mode == DeepFashion2.val_mode:
+            self.image_paths, self.label_paths = self.load_val_data()
+        else:
+            self.image_paths, self.label_paths = self.load_test_data()
 
+    @staticmethod
+    def load_data(data_dir):
+        annos_dir = os.path.join(data_dir, "annos")
+        image_dir = os.path.join(data_dir, "image")
+
+        image_paths = [
+            os.path.join(image_dir, f)
+            for f in sorted(os.listdir(image_dir))
+            if os.path.isfile(os.path.join(image_dir, f))
+        ]
+        label_paths = [
+            os.path.join(annos_dir, f)
+            for f in sorted(os.listdir(annos_dir))
+            if os.path.isfile(os.path.join(annos_dir, f))
+        ]
+
+        if len(image_paths) != len(label_paths):
+            raise ValueError("length of images and labels doesn't match")
+
+        return image_paths, label_paths
+
+    @staticmethod
+    def load_image(image_path):
+        img = Image.open(image_path)
+
+        return img
+
+    @staticmethod
+    def load_label(label_path):
+        # During training, the model expects both the input tensors, as well as a targets (list of dictionary),
+        # containing:
+        #     - boxes (FloatTensor[N, 4]): the ground-truth boxes in [x1, y1, x2, y2] format, with values
+        #       between 0 and H and 0 and W
+        #     - labels (Int64Tensor[N]): the class label for each ground-truth box
+
+        with open(label_path, "r") as f:
+            obj = json.load(f)
+
+        items = []
+        count = 0
+        while True:
+            count += 1
+            key = f"item{count}"
+
+            if key in obj:
+                items.append(obj[key])
+            else:
+                break
+
+        n = len(items)
+        boxes = np.zeros((n, 4))
+        labels = np.zeros((n,))
+
+        for idx, item in enumerate(items):
+            boxes[idx, :] = item["bounding_box"]
+            labels[idx] = item["category_id"]
+
+        return {"boxes": t.tensor(boxes).float(), "labels": t.tensor(labels).long()}
+
+    def load_train_data(self):
+        return self.load_data(os.path.join(get_root_data_folder(self.root), "train"))
+
+    def load_val_data(self):
+        return self.load_data(
+            os.path.join(get_root_data_folder(self.root), "validation")
+        )
+
+    def load_test_data(self):
+        # return self.load_data(
+        #     os.path.join(get_root_data_folder(self.root), "test")
+        # )
+        raise NotImplementedError("labels of test data are not published")
 
     def __getitem__(self, index):
-        pass
+        image = self.load_image(self.image_paths[index])
+        label = self.load_label(self.label_paths[index])
+
+        if self.transform is not None:
+            image = self.transform(image)
+
+        return image, label
 
     def __len__(self):
-        pass
-
-
-if __name__ == "__main__":
-    DeepFashion2()
+        return len(self.image_paths)
