@@ -133,17 +133,17 @@ def generate_dataset(xml_png_pairs):
         if not os.path.exists(class_path):
             os.mkdir(class_path)
 
-    class_count = {c: 0 for c in DF2}
+    class_count = {c: 0 for c in df2_enum_to_name.values()}
     unique_item_count = {}
     unique_item_paths = {}
 
     for xml_path, png_path in xml_png_pairs:
-        raw_class = get_class_from_xml(xml_path)
-        clean_class = class_conversion_table[raw_class]
-
-        if clean_class == discard_item:
+        clean_class = get_class_from_xml(xml_path)
+        # clean_class = class_conversion_table.get
+        # TODO
+        if clean_class == discard_item or clean_class == 'onesies':
             continue
-
+        
         class_count[clean_class] += 1
 
         xml_fn = os.path.split(xml_path)[1]
@@ -159,7 +159,7 @@ def generate_dataset(xml_png_pairs):
             unique_item_count[clothing_id] = 1
             unique_item_paths[clothing_id] = [(xml_path, png_path)]
 
-        class_path = df2_enum_to_name[clean_class]
+        class_path = clean_class
         new_xml_path = os.path.join(data_path, class_path, xml_fn)
         new_png_path = os.path.join(data_path, class_path, png_fn)
 
@@ -170,7 +170,7 @@ def generate_dataset(xml_png_pairs):
     print(class_count)
 
     for key, value in class_count.items():
-        print(key.name, value)
+        print(key, value)
 
     print(unique_item_count)
     print(len(unique_item_count.items()))
