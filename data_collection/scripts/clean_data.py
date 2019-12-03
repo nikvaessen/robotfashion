@@ -3,7 +3,7 @@ import shutil
 import xml.etree.ElementTree as ET
 
 from enum import Enum
-
+import re
 
 class DF2(Enum):
     short_sleeve_top = 1
