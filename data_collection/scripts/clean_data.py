@@ -237,6 +237,8 @@ def find_pairs(xml_paths, png_paths):
 
 
 def labels_to_DF_format(xml_paths):
+    # write meta data for each unique clothing item
+    meta_data = defaultdict(dict)
 
     invalid_labels = []
     for xml_path in xml_paths:
@@ -259,7 +261,30 @@ def labels_to_DF_format(xml_paths):
         # Overwrite XML file with the new labels
         tree.write(xml_path)
 
+        # store old labels
+        xml_fn = os.path.split(xml_path)[1]
+        clothing_id = f"{xml_fn.split('_')[0]}_{xml_fn.split('_')[1]}"
+        clothing_id = re.sub('[_-]',"",clothing_id)
+        meta_data[clothing_id]["raw_label"] = old_label
+        meta_data[clothing_id]["df_label"] = new_label
+        if meta_data[clothing_id].get("frames") == None:
+            meta_data[clothing_id]["frames"] = 1
+        else:
+            meta_data[clothing_id]["frames"] += 1
+
     print(f"Labels not valid : {set(invalid_labels)}")
+
+    # save metadata to preserve old labels
+    s = ''
+    i = 1
+    meta_path = f"{os.getcwd()}/meta_data{s}.json"
+    while os.path.exists(meta_path):
+        s = f'({str(i)})'
+        meta_path = f"{os.getcwd()}/meta_data{s}.json"
+        i += 1
+    
+    with open(meta_path, 'w+') as meta_file:
+        json.dump(meta_data, meta_file)     
 
 def main():
     s = parse_folder("/home/datta/lab/_KTH_ACADEMIA/pj_ds/")
