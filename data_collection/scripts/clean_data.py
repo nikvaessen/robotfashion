@@ -258,7 +258,8 @@ def labels_to_DF_format(xml_paths):
             name_.text = new_label
         elif clean_label == discard_item:
             new_label == discard_item
-        else:
+        elif new_label == None:
+            new_label = old_label
             invalid_labels.append(old_label)
 
         # Overwrite XML file with the new labels
