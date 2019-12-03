@@ -146,7 +146,8 @@ def generate_dataset(xml_png_pairs):
         xml_fn = os.path.split(xml_path)[1]
         png_fn = os.path.split(png_path)[1]
 
-        clothing_id = xml_fn.split("_")[2]
+        clothing_id = f'{xml_fn.split("_")[0]}_{xml_fn.split("_")[1]}'
+        clothing_id = re.sub('[,-]','',clothing_id)
 
         if clothing_id in unique_item_count:
             unique_item_count[clothing_id] += 1
