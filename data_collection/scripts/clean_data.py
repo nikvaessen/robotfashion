@@ -163,6 +163,7 @@ def generate_dataset(xml_png_pairs):
         new_xml_path = os.path.join(data_path, class_path, xml_fn)
         new_png_path = os.path.join(data_path, class_path, png_fn)
 
+        # TODO
         # shutil.copy(xml_path, new_xml_path)
         # shutil.copy(png_path, new_png_path)
 
@@ -214,8 +215,8 @@ def find_pairs(xml_paths, png_paths):
                 if matched_png[pidx]:
                     print("FOUND DUPLICATE")
                     print(xml_full_path, png_full_path, sep="\n")
+                    # TODO
                     exit()
-
                 matched.append((xml_full_path, png_full_path))
 
                 matched_xml[xidx] = True
@@ -282,7 +283,7 @@ def labels_to_DF_format(xml_paths):
         s = f'({str(i)})'
         meta_path = f"{os.getcwd()}/meta_data{s}.json"
         i += 1
-    
+
     with open(meta_path, 'w+') as meta_file:
         json.dump(meta_data, meta_file)     
 
@@ -293,8 +294,8 @@ def main():
     png_paths = s["png_paths"]
     classes = s["classes"]
 
-    labels_to_DF_format(xml_paths)
-    exit()
+    # TODO
+    # labels_to_DF_format(xml_paths)
 
     print(len(xml_paths))
     print(len(png_paths))
