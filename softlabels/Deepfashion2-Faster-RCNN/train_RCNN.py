@@ -7,6 +7,7 @@ import torch
 import transforms as T
 import torchvision.utils
 import torchvision
+import copy
 import torch
 import numpy as np
 import cv2
@@ -37,8 +38,10 @@ def train_RCNN(model, path2data, path2json, weight_path = None):
     dataset = coco_utils.get_coco(path2data, path2json, T.ToTensor())
     # split the dataset in train and test set
     indices = torch.randperm(len(dataset)).tolist()
-    dataset = torch.utils.data.Subset(dataset, indices[:-1])
-    dataset_test = torch.utils.data.Subset(dataset, indices[-1:])
+    print(len(dataset))
+    dataset2 = copy.deepcopy(dataset)
+    dataset = torch.utils.data.Subset(dataset, indices[:-10])
+    dataset_test = torch.utils.data.Subset(dataset2, indices[-10:])
 
     # define training and validation data loaders(use num_workers for multi-gpu)
     data_loader = torch.utils.data.DataLoader(
@@ -77,10 +80,10 @@ def train_RCNN(model, path2data, path2json, weight_path = None):
         # train for one epoch, printing every 10 iterations
         train_one_epoch(model, optimizer, data_loader, device, epoch + start_epoch, print_freq=100)
         # update the learning rate
-        #lr_scheduler.step()
+        lr_scheduler.step()
         # evaluate on the test dataset
         # Find a way around the broken pytorch nograd keypoint evaluation
-        # evaluate(model, data_loader_test, device=device)
+        evaluate(model, data_loader_test, device=device)
 
         # save weights when done
         torch.save({

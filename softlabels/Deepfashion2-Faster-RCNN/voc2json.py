@@ -72,7 +72,7 @@ def generateVOC2Json(rootDir,xmlFiles):
 						x2 = int(doc['annotation']['object']["bndbox"]["xmax"])
 						y2 = int(doc['annotation']['object']["bndbox"]["ymax"])
 						annotation["bbox"] = [x1, y1, x2, y2]
-						annotation["area"] = float(x2 * y2)
+						annotation["area"] = x2 * y2
 						annotation["category_id"] = value["id"]
 						annotation["ignore"] = 0
 						annotation["id"] = str(image_id) + "-" + str(id1)

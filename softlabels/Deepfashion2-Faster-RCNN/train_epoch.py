@@ -1,3 +1,4 @@
+import copy
 import math
 import sys
 import time
@@ -67,8 +68,6 @@ def _get_iou_types(model):
 
 @torch.no_grad()
 def evaluate(model, data_loader, device):
-    n_threads = torch.get_num_threads()
-    torch.set_num_threads(1)
     cpu_device = torch.device("cpu")
     model.eval()
     metric_logger = utils.MetricLogger(delimiter="  ")
@@ -104,5 +103,4 @@ def evaluate(model, data_loader, device):
     # accumulate predictions from all images
     coco_evaluator.accumulate()
     coco_evaluator.summarize()
-    torch.set_num_threads(n_threads)
     return coco_evaluator
