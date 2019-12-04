@@ -9,3 +9,5 @@ python3 ../../robotfashion/robotfashion/models/faster_rcnn/trainer.py \
   --subset-ratio 0.1 \
   --freeze-backbone True \
   --dataset "robotfashion"
+
+sudo shutdown now

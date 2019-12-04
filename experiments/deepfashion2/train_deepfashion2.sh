@@ -10,3 +10,5 @@ python3 ../../robotfashion/robotfashion/models/faster_rcnn/trainer.py \
   --freeze-backbone True \
   --dataset "deepfashion2" \
   --df2-password "PUT_PASSWORD_HERE"
+
+sudo shutdown now
