@@ -107,7 +107,8 @@ def extract_bb(xml_obj):
     if xmin < 0 or xmax < 0 or ymin < 0 or ymax < 0:
         raise ValueError("no xmin,xmax,ymin,ymax in xml")
 
-    return [xmin, xmax, ymin, ymax]
+    # [x1, y1, x2, y2]
+    return [xmin, ymin, xmax, ymax]
 
 
 class RobotFashion(VisionDataset):
@@ -170,7 +171,7 @@ class RobotFashion(VisionDataset):
         return self.load_data(os.path.join(self._get_root_data_folder(), "train"))
 
     def load_val_data(self):
-        return self.load_data(os.path.join(self._get_root_data_folder(), "validation"))
+        return self.load_data(os.path.join(self._get_root_data_folder(), "val"))
 
     def load_test_data(self):
         # return self.load_data(
