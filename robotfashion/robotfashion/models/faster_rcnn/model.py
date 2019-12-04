@@ -58,7 +58,7 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
         self.data_folder_path = hparams.data_folder_path
         self.df2_password = hparams.df2_password
         self.subset_ratio = hparams.subset_ratio
-        self.freeze_for_df2 = hparams.freeze_for_df2
+        self.freeze_backbone = hparams.freeze_backbone
 
         self._faster_rcnn_model: FasterRCNN = fasterrcnn_resnet50_fpn(
             pretrained_backbone=True, num_classes=14
