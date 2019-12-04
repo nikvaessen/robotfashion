@@ -41,12 +41,9 @@ def collate(inputs):
     return images, labels
 
 
-def freeze_resnet50_fpn_backbone_until_last_downsize(model: FasterRCNN):
+def freeze_resnet50_fpn_backbone(model: FasterRCNN):
     for name, p in model.named_parameters():
         if "backbone" in name:
-            # if "fpn" in name:
-            #     continue
-            # elif "layer4" not in name or "layer4.0" in name:
             p.requires_grad_(False)
 
 
@@ -67,8 +64,8 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
             pretrained_backbone=True, num_classes=14
         )
 
-        if self.freeze_for_df2:
-            freeze_resnet50_fpn_backbone_until_last_downsize(self._faster_rcnn_model)
+        if self.freeze_backbone:
+            freeze_resnet50_fpn_backbone(self._faster_rcnn_model)
 
         self._num_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         self._prev_epoch = -1
@@ -222,6 +219,6 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
         parser.add_argument("--data-folder-path", default=os.getcwd(), type=str)
         parser.add_argument("--df2-password", default=None, type=str)
         parser.add_argument("--subset-ratio", default=1, type=float)
-        parser.add_argument("--freeze-for-df2", default=False, type=bool)
+        parser.add_argument("--freeze-backbone", default=False, type=bool)
 
         return parser
