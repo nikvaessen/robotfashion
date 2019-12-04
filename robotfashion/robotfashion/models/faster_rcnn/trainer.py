@@ -11,7 +11,7 @@ from argparse import ArgumentParser
 
 import time
 
-if __name__ == "main":
+if __name__ == '__main__':
     from model import FasterRCNNWithRobotFashion
 else:
     from .model import FasterRCNNWithRobotFashion
