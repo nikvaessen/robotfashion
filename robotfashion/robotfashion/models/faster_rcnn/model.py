@@ -221,7 +221,7 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
         parser.add_argument("--batch-size", default=4, type=int)
         parser.add_argument("--data-folder-path", default=os.getcwd(), type=str)
         parser.add_argument("--df2-password", default=None, type=str)
-        parser.add_argument("--subset-ratio", default=1, type=int)
+        parser.add_argument("--subset-ratio", default=1, type=float)
         parser.add_argument("--freeze-for-df2", default=False, type=bool)
 
         return parser
