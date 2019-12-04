@@ -44,10 +44,10 @@ def collate(inputs):
 def freeze_resnet50_fpn_backbone_until_last_downsize(model: FasterRCNN):
     for name, p in model.named_parameters():
         if "backbone" in name:
-            if "fpn" in name:
-                continue
-            elif "layer4" not in name or "layer4.0" in name:
-                p.requires_grad_(False)
+            # if "fpn" in name:
+            #     continue
+            # elif "layer4" not in name or "layer4.0" in name:
+            p.requires_grad_(False)
 
 
 class FasterRCNNWithRobotFashion(pl.LightningModule):
