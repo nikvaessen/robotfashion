@@ -1,6 +1,6 @@
 import os
 
-from robotfashion.data import DeepFashion2
+from robotfashion.data import DeepFashion2, RobotFashion
 from robotfashion.data.util import sha256_hash_folder
 
 from robotfashion.models.faster_rcnn.model import FasterRCNNWithRobotFashion
@@ -15,7 +15,7 @@ import torchsummary
 
 
 def calculate_folder_hashes():
-    root_path = "/home/nik/kth/y2/project_in_ds/realsense-cli/experiments/deepfashion_2_data_folder"
+    root_path = "/home/nik/kth/y2/project_in_ds/realsense-cli/experiments/robotfashion_data_folder"
 
     for path in os.listdir(root_path):
         p = os.path.join(root_path, path)
@@ -53,16 +53,15 @@ def main():
         ]
     )
 
-    df2 = DeepFashion2(
+    rf = RobotFashion(
         os.getcwd(),
         "train",
         download_if_missing=True,
-        password="2019Deepfashion2**",
         transform=train_val_transform,
-        subset_ratio=0.1,
+        subset_ratio=1,
     )
 
-    print("samples in data:", len(df2))
+    print("samples in data:", len(rf))
 
     def collate(inputs):
         images = list()
@@ -74,20 +73,23 @@ def main():
 
         return images, labels
 
-    data_loader = DataLoader(df2, num_workers=1, batch_size=1, collate_fn=collate)
+    data_loader = DataLoader(rf, num_workers=1, batch_size=1, collate_fn=collate)
 
     # get_data_loader_dist(data_loader)
 
-    # x = data_loader.__iter__().__next__()
-    # print(x)
+    x = data_loader.__iter__().__next__()
+    print(x)
 
     hparams = get_parser()
-    hparams.freeze_for_df2 = True
     model: FasterRCNNWithRobotFashion = FasterRCNNWithRobotFashion(hparams)
 
-    for p in model.named_parameters():
-        a, b = p
-        print(a, b.shape, f"frozen?:{not b.requires_grad}")
+    y = model(x)
+    print(y)
+
+    #
+    # for p in model.named_parameters():
+    #     a, b = p
+    #     print(a, b.shape, f"frozen?:{not b.requires_grad}")
 
 
 if __name__ == "__main__":

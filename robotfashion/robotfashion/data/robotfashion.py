@@ -8,6 +8,106 @@ from .util import has_correct_folder_structure, maybe_download_and_unzip_data
 
 from torchvision.datasets import VisionDataset
 from PIL import Image
+from enum import Enum
+
+import xml.etree.ElementTree as ET
+
+
+class DF2(Enum):
+    short_sleeve_top = 1
+    long_sleeve_top = 2
+    short_sleeve_outwear = 3
+    long_sleeve_outwear = 4
+    vest = 5
+    sling = 6
+    shorts = 7
+    trousers = 8
+    skirt = 9
+    short_sleeve_dress = 10
+    long_sleeve_dress = 11
+    vest_dress = 12
+    sling_dress = 13
+
+
+df2_enum_to_name = {
+    DF2.short_sleeve_top: "short_sleeve_top",
+    DF2.long_sleeve_top: "long_sleeve_top",
+    DF2.short_sleeve_outwear: "short_sleeve_outwear",
+    DF2.long_sleeve_outwear: "long_sleeve_outwear",
+    DF2.vest: "vest",
+    DF2.sling: "sling",
+    DF2.shorts: "shorts",
+    DF2.trousers: "trousers",
+    DF2.skirt: "skirt",
+    DF2.short_sleeve_dress: "short_sleeve_dress",
+    DF2.long_sleeve_dress: "long_sleeve_dress",
+    DF2.vest_dress: "vest_dress",
+    DF2.sling_dress: "sling_dress",
+}
+
+name_to_df2_enum = {
+    "short_sleeve_top": DF2.short_sleeve_top,
+    "long_sleeve_top": DF2.long_sleeve_top,
+    "short_sleeve_outwear": DF2.short_sleeve_outwear,
+    "long_sleeve_outwear": DF2.long_sleeve_outwear,
+    "vest": DF2.vest,
+    "sling": DF2.sling,
+    "shorts": DF2.shorts,
+    "trousers": DF2.trousers,
+    "skirt": DF2.skirt,
+    "short_sleeve_dress": DF2.short_sleeve_dress,
+    "long_sleeve_dres": DF2.long_sleeve_dress,
+    "vest_dress": DF2.vest_dress,
+    "sling_dress": DF2.sling_dress,
+}
+
+
+def get_class_from_xml(xml_path):
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+
+    for child in root:
+        if child.tag == "object":
+            clazz = child[0]
+
+            return name_to_df2_enum[clazz.text].value
+
+    raise ValueError("no name in xml")
+
+
+def get_bbox_from_xml(xml_path):
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+
+    for child in root:
+        if child.tag == "object":
+            for grandchild in child:
+                if grandchild.tag == "bndbox":
+                    return extract_bb(grandchild)
+
+    raise ValueError("no bounding box in xml")
+
+
+def extract_bb(xml_obj):
+    xmin = -1
+    xmax = -1
+    ymin = -1
+    ymax = -1
+
+    for child in xml_obj:
+        if child.tag == "xmin":
+            xmin = int(child.text)
+        if child.tag == "xmax":
+            xmax = int(child.text)
+        if child.tag == "ymin":
+            ymin = int(child.text)
+        if child.tag == "ymax":
+            ymax = int(child.text)
+
+    if xmin < 0 or xmax < 0 or ymin < 0 or ymax < 0:
+        raise ValueError("no xmin,xmax,ymin,ymax in xml")
+
+    return [xmin, xmax, ymin, ymax]
 
 
 class RobotFashion(VisionDataset):
@@ -24,8 +124,6 @@ class RobotFashion(VisionDataset):
         subset_ratio=1,
         transform=None,
     ):
-        super().__init__(working_path, transform=transform, target_transform=None)
-
         super().__init__(working_path, transform=transform, target_transform=None)
 
         if not has_correct_folder_structure(
@@ -96,8 +194,8 @@ class RobotFashion(VisionDataset):
 
     @staticmethod
     def load_data(data_dir):
-        image_dir = os.path.join(data_dir, "image")
-        annos_dir = os.path.join(data_dir, "xml")
+        image_dir = os.path.join(data_dir, "images")
+        annos_dir = os.path.join(data_dir, "annotations")
 
         image_paths = [
             os.path.join(image_dir, f)
@@ -128,28 +226,11 @@ class RobotFashion(VisionDataset):
         #     - boxes (FloatTensor[N, 4]): the ground-truth boxes in [x1, y1, x2, y2] format, with values
         #       between 0 and H and 0 and W
         #     - labels (Int64Tensor[N]): the class label for each ground-truth box
+        boxes = np.zeros((1, 4))
+        labels = np.zeros((1,))
 
-        with open(label_path, "r") as f:
-            obj = json.load(f)
-
-        items = []
-        count = 0
-        while True:
-            count += 1
-            key = f"item{count}"
-
-            if key in obj:
-                items.append(obj[key])
-            else:
-                break
-
-        n = len(items)
-        boxes = np.zeros((n, 4))
-        labels = np.zeros((n,))
-
-        for idx, item in enumerate(items):
-            boxes[idx, :] = item["bounding_box"]
-            labels[idx] = item["category_id"]
+        boxes[0, :] = get_bbox_from_xml(label_path)
+        labels[0] = get_class_from_xml(label_path)
 
         return {"boxes": t.tensor(boxes).float(), "labels": t.tensor(labels).long()}
 
@@ -169,9 +250,12 @@ class RobotFashion(VisionDataset):
             # 2. file name,
             # 3. sha256 hash of zipfile,
             # 4. data length of zipfile
-            ("-UE-LX8sks8eAcGLL-9QDNyNt6VgP", "test.zip", "", 0),
-            ("", "train.zip", "", 0),
-            ("", "validation.zip", "", 0),
+            (
+                "1ezwR5_7OHhqjMR2D9ZMZqpq8u8xQ2MoG",
+                "robotfashion_dataset.zip",
+                "5a66924dbe44eed9bc0cdf52a206470db2fd9421a5745ab17b18588952c14ba4",
+                1050691281,
+            )
         ]
 
     @staticmethod
@@ -181,7 +265,13 @@ class RobotFashion(VisionDataset):
             # 1. folder name
             # 2. sha256 hash of all file and subfolder names
             #    concatenated to a string (without spaces as separation)
-            ("validation", ""),
-            ("train", ""),
-            ("test", ""),
+            (
+                "train",
+                "369ba5f28b246d2903b8f686b18d4b89b668fa484c9baef55c1c8bc5b6f2a45e",
+            ),
+            ("val", "369ba5f28b246d2903b8f686b18d4b89b668fa484c9baef55c1c8bc5b6f2a45e"),
+            (
+                "test",
+                "369ba5f28b246d2903b8f686b18d4b89b668fa484c9baef55c1c8bc5b6f2a45e",
+            ),
         ]
