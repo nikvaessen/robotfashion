@@ -7,6 +7,8 @@ import os
 import hashlib
 import requests
 import subprocess
+import zipfile
+
 
 ################################################################################
 # Download files from google drive
@@ -63,7 +65,7 @@ def download_file_from_google_drive(
 
 
 ################################################################################
-# File integrity check
+# data integrity check (both file and folder hashing)
 # partially taken from https://stackoverflow.com/a/22058673
 
 
@@ -125,6 +127,10 @@ def check_file_integrity(file_path, original_hash):
     return file_hash == original_hash
 
 
+################################################################################
+# unzip utility
+
+
 def is_unzip_available():
     command = ["unzip", "--help"]
 
@@ -135,8 +141,99 @@ def is_unzip_available():
         return False
 
 
-def unzip_command(zip_file_path, password):
+def unzip_command(zip_file_path, password=None):
     path, fn = os.path.split(zip_file_path)
-    command = ["unzip", "-u", "-P", password, fn]
+
+    command = ["unzip", "-u"]
+
+    if password is not None:
+        command += ["-P", password]
+
+    command += [fn]
 
     subprocess.check_call(command, cwd=path, stdout=subprocess.DEVNULL)
+
+
+################################################################################
+# Verifying and downloading files
+
+
+def has_correct_folder_structure(root_path, folders, dataset_name):
+    # root_path = get_root_data_folder(working_path)
+    #
+    # folders = [
+    #     # order:
+    #     # 1. folder name
+    #     # 2. sha256 hash of all file and subfolder names
+    #     #    concatenated to a string (without spaces as separation)
+    #     (
+    #         "validation",
+    #         "a87d16eee207a902b5d3b5bb2ad9f92f0456ffd992b326e1f3a1dfbbc260d38e",
+    #     ),
+    #     (
+    #         "json_for_test",
+    #         "38f8e52f2a4d6e99b190d2ad71ecabdd397d9dc60673b303613ee16f99b0fdac",
+    #     ),
+    #     ("train", "a87d16eee207a902b5d3b5bb2ad9f92f0456ffd992b326e1f3a1dfbbc260d38e"),
+    #     (
+    #         "json_for_validation",
+    #         "0868b572600747de8308160e4cf9eaaeeccf9a3ceab76e6e9bb1a29ba49e07db",
+    #     ),
+    #     ("test", "6105d6cc76af400325e94d588ce511be5bfdbb73b437dc51eca43917d7a43e3d"),
+    # ]
+
+    print(f"verifying {dataset_name} data is available on machine")
+
+    for folder_name, hsh in folders:
+        path = os.path.join(root_path, folder_name)
+
+        if not os.path.isdir(path) or not check_folder_integrity(path, hsh):
+            print(
+                f"failed to find {dataset_name} data: could not find {folder_name} at {path}"
+            )
+            return False
+
+    print(f"successfully found {dataset_name} data")
+    return True
+
+
+def maybe_download_and_unzip_data(root_path, download_links, password: str = None):
+    if not is_unzip_available():
+        print(
+            "WARNING\n you have not installed the unzip command."
+            + "Decrypting the zip files will take SEVERAL HOURS"
+        )
+
+    if not os.path.exists(root_path):
+        os.mkdir(root_path)
+
+    for gd_id, fn, hsh, length in download_links:
+        save_path = os.path.join(root_path, fn)
+
+        if os.path.exists(save_path):
+            if check_file_integrity(save_path, hsh):
+                print(f"found {fn} with correct hash. Skipping download...")
+                continue
+            else:
+                print(f"found {fn} but is corrupted/incomplete. Downloading again...")
+        else:
+            print(f"downloading {fn}")
+
+        download_file_from_google_drive(
+            gd_id, save_path, show_progress=True, data_length_hint=length
+        )
+
+    for gd_id, fn, hsh, length in download_links:
+        save_path = os.path.join(root_path, fn)
+
+        print(f"extracting {fn} in {root_path}")
+
+        if is_unzip_available():
+            unzip_command(save_path, password)
+        else:
+            print("Did not find the unzip command. Unzipping will take several hours!")
+            with zipfile.ZipFile(save_path) as zf:
+                if password is not None:
+                    zf.setpassword(password.encode())
+
+                zf.extractall(root_path)

@@ -16,7 +16,7 @@ from argparse import ArgumentParser
 from torch.utils.data import DataLoader
 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN
 
-from robotfashion.data import DeepFashion2
+from robotfashion.data import DeepFashion2, RobotFashion
 
 ################################################################################
 
@@ -59,6 +59,7 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
         self.df2_password = hparams.df2_password
         self.subset_ratio = hparams.subset_ratio
         self.freeze_backbone = hparams.freeze_backbone
+        self.dataset = hparams.dataset
 
         self._faster_rcnn_model: FasterRCNN = fasterrcnn_resnet50_fpn(
             pretrained_backbone=True, num_classes=14
@@ -163,14 +164,24 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
 
     @pl.data_loader
     def train_dataloader(self):
-        train_data = DeepFashion2(
-            self.data_folder_path,
-            mode="train",
-            download_if_missing=True,
-            password=self.df2_password,
-            transform=train_val_transform,
-            subset_ratio=self.subset_ratio,
-        )
+        if self.dataset == "deepfashion2":
+            train_data = DeepFashion2(
+                self.data_folder_path,
+                mode="train",
+                download_if_missing=True,
+                password=self.df2_password,
+                transform=train_val_transform,
+                subset_ratio=self.subset_ratio,
+            )
+
+        else:
+            train_data = RobotFashion(
+                self.data_folder_path,
+                mode="train",
+                download_if_missing=True,
+                transform=train_val_transform,
+                subset_ratio=self.subset_ratio,
+            )
 
         data_loader = DataLoader(
             train_data,
@@ -184,14 +195,23 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
 
     @pl.data_loader
     def val_dataloader(self):
-        val_data = DeepFashion2(
-            self.data_folder_path,
-            mode="val",
-            download_if_missing=True,
-            password=self.df2_password,
-            transform=train_val_transform,
-            subset_ratio=self.subset_ratio,
-        )
+        if self.dataset == "deepfashion2":
+            val_data = DeepFashion2(
+                self.data_folder_path,
+                mode="val",
+                download_if_missing=True,
+                password=self.df2_password,
+                transform=train_val_transform,
+                subset_ratio=self.subset_ratio,
+            )
+        else:
+            val_data = RobotFashion(
+                self.data_folder_path,
+                mode="val",
+                download_if_missing=True,
+                transform=train_val_transform,
+                subset_ratio=self.subset_ratio,
+            )
 
         data_loader = DataLoader(
             val_data,
@@ -220,5 +240,10 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
         parser.add_argument("--df2-password", default=None, type=str)
         parser.add_argument("--subset-ratio", default=1, type=float)
         parser.add_argument("--freeze-backbone", default=False, type=bool)
+        parser.add_argument(
+            "--dataset",
+            default="deepfashion2",
+            choices=["deepfashion2", "robotfashion"],
+        )
 
         return parser

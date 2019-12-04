@@ -8,5 +8,4 @@ python3 ../../robotfashion/robotfashion/models/faster_rcnn/trainer.py \
   --save-weights-every-n 1 \
   --subset-ratio 0.1 \
   --freeze-backbone True \
-  --dataset "deepfashion2" \
-  --df2-password "PUT_PASSWORD_HERE"
+  --dataset "robotfashion"
