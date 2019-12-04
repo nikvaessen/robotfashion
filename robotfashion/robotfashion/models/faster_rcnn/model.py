@@ -41,6 +41,15 @@ def collate(inputs):
     return images, labels
 
 
+def freeze_resnet50_fpn_backbone_until_last_downsize(model: FasterRCNN):
+    for name, p in model.named_parameters():
+        if "backbone" in name:
+            if "fpn" in name:
+                continue
+            elif "layer4" not in name or "layer4.0" in name:
+                p.requires_grad_(False)
+
+
 class FasterRCNNWithRobotFashion(pl.LightningModule):
     def __init__(self, hparams):
         super(FasterRCNNWithRobotFashion, self).__init__()
@@ -51,10 +60,15 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
         self.batch_size = hparams.batch_size
         self.data_folder_path = hparams.data_folder_path
         self.df2_password = hparams.df2_password
+        self.subset_ratio = hparams.subset_ratio
+        self.freeze_for_df2 = hparams.freeze_for_df2
 
-        self._fast_rcnn_model: FasterRCNN = fasterrcnn_resnet50_fpn(
+        self._faster_rcnn_model: FasterRCNN = fasterrcnn_resnet50_fpn(
             pretrained_backbone=True, num_classes=14
         )
+
+        if self.freeze_for_df2:
+            freeze_resnet50_fpn_backbone_until_last_downsize(self._faster_rcnn_model)
 
         self._num_params = sum(p.numel() for p in self.parameters() if p.requires_grad)
         self._prev_epoch = -1
@@ -62,7 +76,7 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
     def forward(self, x):
         # input should be tuple (images: List[Tensor], labels: List[Dict[Tensor]]
 
-        return self._fast_rcnn_model(*x)
+        return self._faster_rcnn_model(*x)
 
     def training_step(self, batch, batch_idx):
         # a batch exists out of tuple (images: List[Tensor], labels: List[Dict[Tensor]]
@@ -158,13 +172,14 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
             download_if_missing=True,
             password=self.df2_password,
             transform=train_val_transform,
+            subset_ratio=self.subset_ratio,
         )
 
         data_loader = DataLoader(
             train_data,
             num_workers=self.num_data_loaders,
             batch_size=self.batch_size,
-            collate_fn=collate
+            collate_fn=collate,
         )
 
         print("train len ", len(data_loader))
@@ -178,13 +193,14 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
             download_if_missing=True,
             password=self.df2_password,
             transform=train_val_transform,
+            subset_ratio=self.subset_ratio,
         )
 
         data_loader = DataLoader(
             val_data,
             num_workers=self.num_data_loaders,
             batch_size=self.batch_size,
-            collate_fn=collate
+            collate_fn=collate,
         )
 
         print("validation length", len(data_loader))
@@ -205,5 +221,7 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
         parser.add_argument("--batch-size", default=4, type=int)
         parser.add_argument("--data-folder-path", default=os.getcwd(), type=str)
         parser.add_argument("--df2-password", default=None, type=str)
+        parser.add_argument("--subset-ratio", default=1, type=int)
+        parser.add_argument("--freeze-for-df2", default=False, type=bool)
 
         return parser

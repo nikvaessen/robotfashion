@@ -145,6 +145,7 @@ class DeepFashion2(VisionDataset):
             mode: str,
             password: str = None,
             download_if_missing: bool = False,
+            subset_ratio=1,
             transform=None,
     ):
         super().__init__(working_path, transform=transform, target_transform=None)
@@ -168,6 +169,11 @@ class DeepFashion2(VisionDataset):
 
         if mode not in DeepFashion2.modes:
             raise ValueError(f"mode {mode} should be one of {DeepFashion2.modes}")
+
+        if subset_ratio <= 0 or subset_ratio > 1:
+            raise ValueError(f"subset ratio {subset_ratio} needs to be in (0, 1]")
+        else:
+            self.subset_ratio = subset_ratio
 
         self.mode = mode
 
@@ -261,4 +267,6 @@ class DeepFashion2(VisionDataset):
         return image, label
 
     def __len__(self):
-        return len(self.image_paths)
+        n = len(self.image_paths)
+
+        return int(self.subset_ratio * n)

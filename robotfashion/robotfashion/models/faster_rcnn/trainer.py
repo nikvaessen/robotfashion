@@ -11,7 +11,10 @@ from argparse import ArgumentParser
 
 import time
 
-from model import FasterRCNNWithRobotFashion
+if __name__ == "main":
+    from model import FasterRCNNWithRobotFashion
+else:
+    from .model import FasterRCNNWithRobotFashion
 
 
 def main(hparams):
@@ -79,7 +82,7 @@ def main(hparams):
     trainer.fit(model)
 
 
-if __name__ == "__main__":
+def get_parser():
     parser = ArgumentParser(add_help=False)
 
     parser.add_argument("--gpus", type=str, default=1)
@@ -98,4 +101,8 @@ if __name__ == "__main__":
     # parse params
     hparams = parser.parse_args()
 
-    main(hparams)
+    return hparams
+
+
+if __name__ == "__main__":
+    main(get_parser())
