@@ -6,4 +6,5 @@ python3 ../../robotfashion/robotfashion/models/faster_rcnn/trainer.py \
   --batch-size 10 \
   --data-folder-path .. \
   --save-weights-every-n 1 \
+  --data-folder-path .. \
   --df-2password "PUT_PASSWORD_HERE"
