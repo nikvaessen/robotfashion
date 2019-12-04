@@ -7,36 +7,38 @@
 import os
 import torch
 
-import numpy as np
 import pytorch_lightning as pl
 
 import torchvision.transforms as transforms
 
 from collections import OrderedDict
 from argparse import ArgumentParser
-from torch.nn import functional as F
-from torch.utils.data import DataLoader, SubsetRandomSampler
+from torch.utils.data import DataLoader
 from torchvision.models.detection import fasterrcnn_resnet50_fpn, FasterRCNN
-from torchvision.datasets import CIFAR10
+
+from robotfashion.data import DeepFashion2
 
 ################################################################################
 
-train_val_transform = transforms.Compose(
-    [
-        transforms.ToTensor(),
-    ]
-)
+train_val_transform = transforms.Compose([transforms.ToTensor()])
 
-test_transform = transforms.Compose(
-    [
-        transforms.ToTensor(),
-    ]
-)
+test_transform = transforms.Compose([transforms.ToTensor()])
 
 num_classes = 14
 
 
 ################################################################################
+
+# function to merge a list of inputs into a single batch
+def collate(inputs):
+    images = list()
+    labels = list()
+
+    for image, label in inputs:
+        images.append(image)
+        labels.append(label)
+
+    return images, labels
 
 
 class FasterRCNNWithRobotFashion(pl.LightningModule):
@@ -45,8 +47,10 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
 
         self.hparams = hparams
 
-        # self.split = hparams.train_val_split
-        # self.num_data_loaders = hparams.num_data_loaders
+        self.num_data_loaders = hparams.num_data_loaders
+        self.batch_size = hparams.batch_size
+        self.data_folder_path = hparams.data_folder_path
+        self.df2_password = hparams.df2_password
 
         self._fast_rcnn_model: FasterRCNN = fasterrcnn_resnet50_fpn(
             pretrained_backbone=True, num_classes=14
@@ -61,115 +65,106 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
         return self._fast_rcnn_model(*x)
 
     def training_step(self, batch, batch_idx):
-        # REQUIRED
-        x, y = batch
-        y_hat = self.forward(x)
+        # a batch exists out of tuple (images: List[Tensor], labels: List[Dict[Tensor]]
+        losses_dict = self.forward(batch)
 
-        # Training metrics for monitoring
-        labels_hat = torch.argmax(y_hat, dim=1)
-        train_acc = torch.sum(y == labels_hat).item() / (len(y) * 1.0)
-        train_loss = F.cross_entropy(y_hat, y)
-        logger_logs = {"train_acc": train_acc, "train_loss": train_loss}
+        loss_classifier = losses_dict["loss_classifier"]
+        loss_box_reg = losses_dict["loss_box_reg"]
+        loss_objectness = losses_dict["loss_objectness"]
+        loss_rpn_box_reg = losses_dict["loss_rpn_box_reg"]
 
-        # loss is strictly required
+        total_loss = loss_classifier + loss_box_reg + loss_objectness + loss_rpn_box_reg
+
+        log_dict = {
+            "loss_classifier": loss_classifier,
+            "loss_box_reg": loss_box_reg,
+            "loss_objectness": loss_objectness,
+            "loss_rpn_box_reg": loss_rpn_box_reg,
+            "total_loss": total_loss,
+        }
+
         output = OrderedDict(
-            {
-                "loss": train_loss,
-                "progress_bar": {"train_acc": train_acc},
-                "log": logger_logs,
-            }
+            {"loss": total_loss, "progress_bar": log_dict, "log": log_dict}
         )
 
         return output
 
     def validation_step(self, batch, batch_idx):
-        # OPTIONAL
-        x, y = batch
-        y_hat = self.forward(x)
+        # our validation should also be in training mode
+        self.train()
 
-        # validation metrics for monitoring
-        labels_hat = torch.argmax(y_hat, dim=1)
-        val_acc = torch.sum(y == labels_hat).item() / (len(y) * 1.0)
-        val_loss = F.cross_entropy(y_hat, y)
+        # a batch exists out of tuple (images: List[Tensor], labels: List[Dict[Tensor]]
+        losses_dict = self.forward(batch)
 
-        return OrderedDict(
-            {"val_loss": val_loss.clone().detach(), "val_acc": torch.tensor(val_acc)}
-        )
+        print(losses_dict)
+
+        loss_classifier = losses_dict["loss_classifier"]
+        loss_box_reg = losses_dict["loss_box_reg"]
+        loss_objectness = losses_dict["loss_objectness"]
+        loss_rpn_box_reg = losses_dict["loss_rpn_box_reg"]
+
+        total_loss = loss_classifier + loss_box_reg + loss_objectness + loss_rpn_box_reg
+
+        log_dict = {
+            "loss_classifier": loss_classifier,
+            "loss_box_reg": loss_box_reg,
+            "loss_objectness": loss_objectness,
+            "loss_rpn_box_reg": loss_rpn_box_reg,
+            "val_loss": total_loss,
+        }
+
+        # lightning expects to be in eval mode
+        self.eval()
+
+        return OrderedDict(log_dict)
 
     def validation_end(self, outputs):
         """
-        outputs -- list of outputs ftom each validation step
+        outputs -- list of outputs from each validation step
         """
         # The outputs here are strictly for progress bar
-        avg_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
-        avg_acc = torch.stack([x["val_acc"] for x in outputs]).mean()
+        loss_classifier = torch.stack([x["loss_classifier"] for x in outputs]).mean()
+        loss_box_reg = torch.stack([x["loss_box_reg"] for x in outputs]).mean()
+        loss_objectness = torch.stack([x["loss_objectness"] for x in outputs]).mean()
+        loss_rpn_box_reg = torch.stack([x["loss_rpn_box_reg"] for x in outputs]).mean()
+        total_loss = torch.stack([x["val_loss"] for x in outputs]).mean()
 
-        logger_logs = {"val_acc": avg_acc, "val_loss": avg_loss}
+        log_dict = {
+            "loss_classifier": loss_classifier,
+            "loss_box_reg": loss_box_reg,
+            "loss_objectness": loss_objectness,
+            "loss_rpn_box_reg": loss_rpn_box_reg,
+            "val_loss": total_loss,
+        }
 
-        output = OrderedDict({"progress_bar": logger_logs, "log": logger_logs})
+        output = OrderedDict({"progress_bar": log_dict, "log": log_dict})
 
         return output
 
     def test_step(self, batch, batch_nb):
-        x, y = batch
-        y_hat = self.forward(x)
-
-        # validation metrics for monitoring
-        labels_hat = torch.argmax(y_hat, dim=1)
-        test_acc = torch.sum(y == labels_hat).item() / (len(y) * 1.0)
-        test_loss = F.cross_entropy(y_hat, y)
-
-        return OrderedDict(
-            {
-                "test_loss": test_loss.clone().detach(),
-                "test_acc": torch.tensor(test_acc),
-            }
-        )
+        raise NotImplementedError()
 
     def test_end(self, outputs):
-        avg_loss = torch.stack([x["test_loss"] for x in outputs]).mean()
-        avg_acc = torch.stack([x["test_acc"] for x in outputs]).mean()
-
-        return OrderedDict(
-            {
-                "progress_bar": {"loss": avg_loss, "accuracy": avg_acc},
-                "log": {"test_acc": avg_acc, "test_loss": avg_loss},
-            }
-        )
+        raise NotImplementedError()
 
     def configure_optimizers(self):
-        raise NotImplemented()
-
-    def get_train_val_sampler(self, num_samples):
-        indices = list(range(num_samples))
-
-        if self.split == 1:
-            train_idx = indices
-            split_idx_val = int(np.floor(0.1 * num_samples))
-            val_idx = indices[:split_idx_val]
-        else:
-            split_idx = int(np.floor(self.split * num_samples))
-            train_idx, val_idx = indices[:split_idx], indices[split_idx:]
-
-        train_sampler = SubsetRandomSampler(train_idx)
-        val_sampler = SubsetRandomSampler(val_idx)
-
-        return train_sampler, val_sampler
+        return torch.optim.Adam(self.parameters())
 
     @pl.data_loader
     def train_dataloader(self):
-        # REQUIRED
-        train_data = CIFAR10(
-            os.getcwd(), train=True, download=True, transform=train_val_transform
+        train_data = DeepFashion2(
+            self.data_folder_path,
+            mode="train",
+            download_if_missing=True,
+            password=self.df2_password,
+            transform=train_val_transform,
         )
-
-        train_sampler, _ = self.get_train_val_sampler(len(train_data))
 
         data_loader = DataLoader(
             train_data,
             num_workers=self.num_data_loaders,
-            batch_size=self.bs,
-            sampler=train_sampler,
+            batch_size=self.batch_size,
+            collate_fn=collate
         )
 
         print("train len ", len(data_loader))
@@ -177,44 +172,38 @@ class FasterRCNNWithRobotFashion(pl.LightningModule):
 
     @pl.data_loader
     def val_dataloader(self):
-        # OPTIONAL
-        val_data = CIFAR10(
-            os.getcwd(), train=True, download=True, transform=train_val_transform
+        val_data = DeepFashion2(
+            self.data_folder_path,
+            mode="val",
+            download_if_missing=True,
+            password=self.df2_password,
+            transform=train_val_transform,
         )
-
-        _, val_sampler = self.get_train_val_sampler(len(val_data))
 
         data_loader = DataLoader(
             val_data,
             num_workers=self.num_data_loaders,
-            batch_size=self.bs,
-            sampler=val_sampler,
+            batch_size=self.batch_size,
+            collate_fn=collate
         )
 
-        print("val len ", len(data_loader))
+        print("validation length", len(data_loader))
         return data_loader
 
-    @pl.data_loader
-    def test_dataloader(self):
-        # OPTIONAL
-        return DataLoader(
-            CIFAR10(os.getcwd(), train=False, download=True, transform=test_transform),
-            batch_size=self.hparams.batch_size,
-        )
+    # @pl.data_loader
+    # def test_dataloader(self):
+    #     raise NotImplementedError()
 
     @staticmethod
     def add_model_specific_args(parent_parser):
         """
-        Specify the hyperparams for this LightningModule
+        Specify the hyper-parameters of this LightningModule
         """
-        # MODEL specific
         parser = ArgumentParser(parents=[parent_parser])
-        parser.add_argument("--adaptivity-rate", default=10 ** -4, type=float)
-        parser.add_argument("--threshold", default=10 ** -8, type=float)
-        parser.add_argument("--batch_size", default=50, type=int)
-        parser.add_argument("--adam-lr", default=0.01, type=float)
-        parser.add_argument("--decay-n-epochs", default=100, type=int)
-        parser.add_argument("--decay-exponential", default=0.1, type=float)
-        parser.add_argument("--train-val-split", default=0.90, type=float)
+
+        parser.add_argument("--num-data-loaders", default=4, type=int)
+        parser.add_argument("--batch-size", default=4, type=int)
+        parser.add_argument("--data-folder-path", default=os.getcwd(), type=str)
+        parser.add_argument("--df2-password", default=None, type=str)
 
         return parser
