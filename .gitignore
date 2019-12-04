@@ -110,6 +110,6 @@ venv.bak/
 .idea
 /data/
 /data_collection/scripts/data/
-**/deepfashion_2_data_folder/
+**/deepfashion2_data_folder/
 /experiments/robotfashion_data_folder/
 */lightning_logs/
