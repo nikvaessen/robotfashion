@@ -16,4 +16,4 @@ python3 ../../robotfashion/robotfashion/models/faster_rcnn/trainer.py \
   --debug 0 \
   --batch-size 1 \
   --data-folder-path .. \
-  --overfit_pct 0.001
+  --overfit_pct 0.0001
