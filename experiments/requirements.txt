@@ -2,4 +2,9 @@ torch
 torchvision
 Pillow
 numpy
+setuptools==41.6.0
+torch
+torchvision
+torchsummary
+git+https://github.com/nikvaessen/pytorch-lightning@master#egg=pytorch-lightning
 #robotfashion
