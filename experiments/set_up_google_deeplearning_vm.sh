@@ -35,4 +35,4 @@ pip3.6 install --upgrade pip
 pip3.6 install --upgrade setuptools
 pip3.6 install -r requirements.txt
 
-pip3.6 install -e .
+pip3.6 install -e ../robotfashion/
