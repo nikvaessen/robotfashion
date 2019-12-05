@@ -56,7 +56,7 @@ name_to_df2_enum = {
     "trousers": DF2.trousers,
     "skirt": DF2.skirt,
     "short_sleeve_dress": DF2.short_sleeve_dress,
-    "long_sleeve_dres": DF2.long_sleeve_dress,
+    "long_sleeve_dress": DF2.long_sleeve_dress,
     "vest_dress": DF2.vest_dress,
     "sling_dress": DF2.sling_dress,
 }

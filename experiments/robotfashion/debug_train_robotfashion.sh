@@ -2,13 +2,25 @@ python3 ../../robotfashion/robotfashion/models/faster_rcnn/trainer.py \
   --gpus 0 \
   --nodes 1 \
   --num-data-loaders 4 \
-  --max_nb_epochs 10 \
+  --max_nb_epochs 1 \
   --data-folder-path .. \
   --save-weights-every-n 1 \
   --freeze-backbone True \
   --dataset "robotfashion" \
   --batch-size 1 \
-  --subset-ratio 0.005 \
+  --subset-ratio 1 \
+
+python3 ../../robotfashion/robotfashion/models/faster_rcnn/trainer.py \
+  --gpus 0 \
+  --nodes 1 \
+  --num-data-loaders 4 \
+  --max_nb_epochs 1 \
+  --data-folder-path .. \
+  --save-weights-every-n 1 \
+  --freeze-backbone True \
+  --dataset "robotfashion" \
+  --batch-size 1 \
+  --subset-ratio 0.01 \
 
 python3 ../../robotfashion/robotfashion/models/faster_rcnn/trainer.py \
   --gpus 0 \
@@ -20,4 +32,4 @@ python3 ../../robotfashion/robotfashion/models/faster_rcnn/trainer.py \
   --freeze-backbone False \
   --dataset "robotfashion" \
   --batch-size 1 \
-  --subset-ratio 0.005 \
+  --subset-ratio 0.01 \
